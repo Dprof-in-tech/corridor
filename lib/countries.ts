@@ -1,4 +1,4 @@
-// The African side of the corridor. Weave's payout rail (Paycrest) already
+// The African side of the corridor. Weave's payout rail already
 // covers these currencies; a country is "live" once Weave switches it on.
 // Corridor is country-agnostic: to add one, add a row here — the recipient
 // pills, the landing and /mainnet all read from this list.

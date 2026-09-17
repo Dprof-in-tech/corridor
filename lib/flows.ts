@@ -21,7 +21,7 @@ export type From = 'bal' | 'ngn' | 'bob';
 export interface NgDetails extends NigeriaRecipient {}
 export interface BoDetails { fields: Record<string, string>; quote: RampQuote }
 export interface FrDetails { address: string; handle: string | null }
-export interface PayerBank { bankCode: string; accountNumber: string; accountName: string }  // Paycrest refund account for naira transfers
+export interface PayerBank { bankCode: string; accountNumber: string; accountName: string }  // refund account for naira transfers
 
 export interface FlowInput {
   to: To; from: From;

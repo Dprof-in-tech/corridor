@@ -68,7 +68,7 @@ Around that:
 
 ## Beyond Nigeria: Kenya, Uganda, Tanzania
 
-The African side is not Nigeria-specific. Weave's payout rail (Paycrest)
+The African side is not Nigeria-specific. Weave's payout rail
 already carries **KES, UGX and TZS** as well as NGN; Nigeria is the corridor
 that is switched on today, and the others are enabled on Weave's side without
 any new integration. Corridor is built country-agnostic to match:
@@ -128,7 +128,7 @@ became ₦2,698.94 in a PalmPay account in 1 min 23 s
 | Leg | Testnet (the demo) | Mainnet |
 | --- | --- | --- |
 | Sign-in, wallet, sponsored fees | Pollar testnet app | Pollar mainnet app |
-| Naira payout to a bank | Weave sandbox (`sk_test_`): Paycrest sandbox, payout marked as received | Weave live (`sk_live_`) → Paycrest, **live** |
+| Naira payout to a bank | Weave sandbox (`sk_test_`): payout marked as received | Weave live (`sk_live_`), **live** |
 | Stellar → Base hop | Weave's **testnet simulator**: a funded testnet account that plays the bridge counterparty (labelled `stellar_simulator`) | LI.FI / Circle CCTP, **live**, payer-signed, 2 USDC minimum |
 | Naira → wallet (Add money) | Weave sandbox + simulator | Weave → NEAR Intents (NEAR's Stellar pairs are currently paused upstream) |
 | Bolivianos in / out | **Mocked** (`MockBolivia`) — same SDK calls, QR image marked *MOCK QR · TESTNET* | Pollar's Stereum ramp, enabled per app by Pollar |

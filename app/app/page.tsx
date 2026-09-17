@@ -88,7 +88,7 @@ export default function Dashboard() {
   const [ngBankQ, setNgBankQ] = useState(''); const [ngBank, setNgBank] = useState<Bank | null>(null); const [ngAcct, setNgAcct] = useState(''); const [ngName, setNgName] = useState(''); const [ngErr, setNgErr] = useState<string | null>(null); const [ngResolving, setNgResolving] = useState(false);
   const [boQuote, setBoQuote] = useState<RampQuote | null>(null); const [boFields, setBoFields] = useState<Record<string, string>>({});
   const [frInput, setFrInput] = useState(''); const [frAddr, setFrAddr] = useState<string | null>(null); const [frHandle, setFrHandle] = useState<string | null>(null); const [frErr, setFrErr] = useState<string | null>(null);
-  // payer bank (naira transfers → Paycrest refund account)
+  // payer bank (naira transfers → Weave refund account)
   const [pBankQ, setPBankQ] = useState(''); const [pBank, setPBank] = useState<Bank | null>(null); const [pAcct, setPAcct] = useState(''); const [pName, setPName] = useState(''); const [pErr, setPErr] = useState<string | null>(null);
   // execution
   const [running, setRunning] = useState(false);

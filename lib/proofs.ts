@@ -29,8 +29,8 @@ export const PROOFS: Proof[] = [
     weaveOrder: '64ec9474-5c54-4136-afce-35974990a213',
     notes: [
       'The payer signed twice: a Soroban allowance for Circle\'s CCTP TokenMessenger, then LI.FI\'s bridge call. Weave never held the funds.',
-      'CCTP burned 2 USDC on Stellar and minted 1.995 USDC on Base straight to Paycrest\'s receive address.',
-      'Paycrest paid ₦2,698.94 to PalmPay at 01:31:06 UTC. Weave fees: $0.017 + $0.005.',
+      'CCTP burned 2 USDC on Stellar and minted 1.995 USDC on Base straight to Weave\'s payout rail.',
+      'Weave paid ₦2,698.94 to PalmPay at 01:31:06 UTC. Fees: $0.017 + $0.005.',
     ],
   },
 ];

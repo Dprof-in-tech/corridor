@@ -59,7 +59,7 @@ const HOPS: Array<{ n: string; title: string; who: string; holds: string; time: 
   { n: '01', title: 'Sign in, get a wallet', who: 'Pollar', holds: 'You', time: 'seconds', status: 'live', note: 'Google or email → a Stellar wallet with sponsored fees. Same on testnet and mainnet.' },
   { n: '02', title: 'Sign 1 of 2 — allow USDC to move', who: 'Your wallet · Circle CCTP', holds: 'You', time: '~5 s', status: 'live', note: 'A Soroban allowance on the USDC contract for Circle\'s TokenMessenger. Weave can offer a standing allowance so repeat sends are one signature.' },
   { n: '03', title: 'Sign 2 of 2 — bridge', who: 'LI.FI diamond on Stellar', holds: 'Circle (in flight)', time: '~60 s', status: 'live', note: 'CCTP burns the USDC on Stellar and mints it on Base directly to the payout provider\'s receive address. Floor: 2 USDC; the sender needs ≥ 2 XLM.' },
-  { n: '04', title: 'Naira payout', who: 'Weave → Paycrest', holds: 'Paycrest (seconds)', time: '~20 s', status: 'live', note: 'Weave plans the route, watches the mint land and Paycrest pays any Nigerian bank. Account name is verified before you send.' },
+  { n: '04', title: 'Naira payout', who: 'Weave', holds: 'Weave\'s payout rail (seconds)', time: '~20 s', status: 'live', note: 'Weave plans the route, watches the mint land and pays any Nigerian bank. Account name is verified before you send.' },
   { n: '05', title: 'Naira in the bank', who: 'Any Nigerian bank', holds: 'The recipient', time: '', status: 'live', note: 'Proof #1 below: ₦2,698.94 in PalmPay, 1 min 23 s after the second signature.' },
 ];
 const OTHER: Array<{ leg: string; via: string; status: 'live' | 'switch' | 'paused'; note: string }> = [
@@ -67,7 +67,7 @@ const OTHER: Array<{ leg: string; via: string; status: 'live' | 'switch' | 'paus
   { leg: 'Bolivianos in and out', via: 'Pollar · Stereum (QR in, ACH out)', status: 'switch', note: 'Pollar enables the BOB ramp per mainnet app. Mocked on testnet at the Pollar team\'s request; the calls are the same SDK calls.' },
   { leg: 'Friend → friend', via: 'Stellar payment, sponsored', status: 'live', note: 'USDC to an @handle or G-address. No fee.' },
   { leg: 'Any Stellar wallet (SEP-24)', via: 'Weave anchor · stellar.toml', status: 'switch', note: 'Weave is a SEP-10/24 anchor for NGN, live at api.paywithweave.com. Pollar lists it by home domain.' },
-  { leg: `${NEXT_AFRICA.map(c => c.name).join(' · ')} (${NEXT_CURRENCIES})`, via: 'Weave → Paycrest', status: 'switch', note: 'The same payout rail that delivers naira already carries these currencies. Enabling a country is a switch on Weave\'s side, not a new integration — and Corridor is country-agnostic (one row in lib/countries.ts).' },
+  { leg: `${NEXT_AFRICA.map(c => c.name).join(' · ')} (${NEXT_CURRENCIES})`, via: 'Weave', status: 'switch', note: 'The same payout rail that delivers naira already carries these currencies. Enabling a country is a switch on Weave\'s side, not a new integration — and Corridor is country-agnostic (one row in lib/countries.ts).' },
 ];
 const StatusPill = ({ s }: { s: 'live' | 'switch' | 'paused' }) => {
   const m = { live: ['Live', ACCENT], switch: ['Waiting on a switch', INK], paused: ['Provider paused', '#A8321E'] }[s];
