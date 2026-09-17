@@ -2,7 +2,6 @@
 const nextConfig = {
   typescript: { ignoreBuildErrors: true },
   eslint: { ignoreDuringBuilds: true },
-  transpilePackages: ['@weave/ui'],
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,

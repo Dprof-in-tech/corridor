@@ -1,9 +1,6 @@
 @import "tailwindcss";
-@import "@weave/ui/theme.css";
 
-/* ── Corridor design tokens (design handoff, high fidelity) ─────────────────
-   Overrides the shared Weave palette names so sub-pages built on them pick up
-   the new look automatically. */
+/* ── Corridor design tokens (design handoff, high fidelity) ───────────────── */
 @theme {
   --font-display: var(--font-instrument), "Instrument Serif", Georgia, serif;
   --font-body: var(--font-plex), "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;

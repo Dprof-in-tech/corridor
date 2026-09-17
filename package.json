@@ -1,5 +1,5 @@
 {
-  "name": "@weave/corridor",
+  "name": "corridor",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -12,9 +12,6 @@
     "@pollar/core": "^0.11.3",
     "@pollar/react": "^0.11.3",
     "@upstash/redis": "^1.37.0",
-    "@weave/ui": "workspace:*",
-    "clsx": "^2.0.0",
-    "lucide-react": "^0.300.0",
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -27,5 +24,10 @@
     "postcss": "^8",
     "tailwindcss": "^4.0.0",
     "typescript": "^5"
+  },
+  "description": "Nigeria \u2194 Bolivia in minutes. A non-custodial Stellar corridor on Pollar wallets, with Weave as the Nigerian anchor.",
+  "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": ">=20"
   }
 }
