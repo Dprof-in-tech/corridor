@@ -1,17 +1,16 @@
 'use client';
 
 import { PollarProvider } from '@pollar/react';
-import { useNetwork, pollarKeyFor } from '../lib/network';
+import { useNetwork, pollarKeyFor, MAINNET_LIVE } from '../lib/network';
 
 // Pollar owns identity + the Stellar wallet + the LatAm ramps; Weave owns the
 // Nigerian leg. One provider at the root gives every page usePollar().
 //
-// Each Pollar app is bound to one network, so when mainnet goes live the
-// test-mode switch will swap the publishable key and REMOUNT the provider (the
-// SDK locks its client at first render; sessions are per app). Until then the
-// mainnet side of the switch shows a "coming soon" page and the testnet client
-// stays mounted, so flipping back keeps the session.
-const MAINNET_LIVE = false;
+// Each Pollar app is bound to one network, so the test-mode switch swaps the
+// publishable key and REMOUNTS the provider (the SDK locks its client at first
+// render; sessions are per app, so switching means signing in again). With
+// NEXT_PUBLIC_MAINNET_LIVE unset the mainnet side shows a "coming soon" page
+// and the testnet client stays mounted, so flipping back keeps the session.
 
 // Where Pollar sends the OAuth popup once Google/GitHub is done. Must be
 // registered on the Pollar app (its redirect-URI allowlist) — the SDK's own

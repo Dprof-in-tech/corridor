@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePollar } from '@pollar/react';
 import { Coins, DashboardArches, Logo } from './Brand';
-import { useNetwork, setNetwork } from '../lib/network';
+import { useNetwork, setNetwork, MAINNET_LIVE } from '../lib/network';
 import { TOUR_EVENT } from './Tour';
 import { ensureWalletSession, endWalletSession } from '../lib/session-client';
 
@@ -28,6 +28,7 @@ export function Chrome({ children, back }: { children: React.ReactNode; back?: s
   const [noticeOpen, setNoticeOpen] = useState(true);
   const network = useNetwork();
   const IS_TESTNET = network === 'testnet';
+  const COMING_SOON = !IS_TESTNET && !MAINNET_LIVE;
 
   // Auth gate. Pollar's isAuthenticated is false for a moment on a hard load
   // while the SDK restores a persisted session, so we cannot bounce on it
@@ -100,17 +101,21 @@ export function Chrome({ children, back }: { children: React.ReactNode; back?: s
         </div>
       </header>
 
-      {IS_TESTNET && noticeOpen && (
+      {(IS_TESTNET || MAINNET_LIVE) && noticeOpen && (
         <div style={{ position: 'relative', zIndex: 1, maxWidth: 1120, margin: '20px auto 0', padding: '0 48px' }} className="chrome-pad">
-          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', padding: '12px 18px', border: '1px solid #4F7A5C', borderRadius: 16, background: '#FBF8F2', font: '13px/1.5 var(--font-body)', color: '#5E6058', maxWidth: 640 }}>
-            <span style={{ flex: 1 }}><strong style={{ color: '#2F4A3B', fontWeight: 500 }}>Test version.</strong> Nothing here moves real money; bank steps are simulated, the Stellar bridge is a labelled simulator, and BOB payouts are mocked (Pollar runs them on mainnet).</span>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', padding: '12px 18px', border: `1px solid ${IS_TESTNET ? '#4F7A5C' : '#2F4A3B'}`, borderRadius: 16, background: '#FBF8F2', font: '13px/1.5 var(--font-body)', color: '#5E6058', maxWidth: 640 }}>
+            <span style={{ flex: 1 }}>
+              {IS_TESTNET
+                ? <><strong style={{ color: '#2F4A3B', fontWeight: 500 }}>Test version.</strong> Nothing here moves real money; bank steps are simulated, the Stellar bridge is a labelled simulator, and BOB payouts are mocked (Pollar runs them on mainnet).</>
+                : <><strong style={{ color: '#2F4A3B', fontWeight: 500 }}>Live on mainnet.</strong> Real money. Sends to Nigeria go over LI.FI / Circle CCTP (2 USDC minimum, two signatures) and pay out through Weave. Naira top-ups and the Bolivian ramp turn on as their providers enable them.</>}
+            </span>
             <button onClick={toggleNotice} style={{ border: 0, background: 'transparent', color: '#8A8A80', fontSize: 13, cursor: 'pointer', padding: 0 }}>Hide</button>
           </div>
         </div>
       )}
 
       <main style={{ position: 'relative', zIndex: 1, maxWidth: 1120, margin: '0 auto', padding: '64px 48px 160px' }} className="chrome-pad">
-        {!IS_TESTNET ? (
+        {COMING_SOON ? (
           <section className="rise" style={{ minHeight: '50vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 20, maxWidth: 720 }}>
             <div className="mono-eyebrow">Mainnet</div>
             <h1 style={{ font: '400 clamp(48px, 8vw, 96px)/0.95 var(--font-display)', letterSpacing: '-0.025em', color: '#2F4A3B', margin: 0 }}>Coming <span style={{ color: '#4F7A5C', fontStyle: 'italic' }}>soon.</span></h1>

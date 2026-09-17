@@ -43,6 +43,9 @@ export function pollarKeyFor(n: Network): string {
   return (n === 'mainnet' ? process.env.NEXT_PUBLIC_POLLAR_PUBLISHABLE_KEY_MAINNET : process.env.NEXT_PUBLIC_POLLAR_PUBLISHABLE_KEY) || '';
 }
 
+/** Is the mainnet side of the switch wired to live credentials in this build? */
+export const MAINNET_LIVE = process.env.NEXT_PUBLIC_MAINNET_LIVE === 'true';
+
 export const USDC_ISSUER: Record<Network, string> = {
   mainnet: 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
   testnet: 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5',

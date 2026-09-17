@@ -117,13 +117,16 @@ secret key for that environment — and everything else derives from it: the
 USDC issuer, the explorer, the real bridge instead of a simulator, the real BOB
 ramp instead of a mock.
 
-**Mainnet is gated off in this build.** `MAINNET_LIVE = false` in
-`app/providers.tsx` keeps the testnet Pollar client mounted and the mainnet side
-of the switch renders *Coming soon* with a link to the proof page. Flipping that
-constant (with the mainnet keys set) is the only change needed to route the
-switch to live credentials; the mainnet code paths — the two-signature
-LI.FI/CCTP bridge, the $2 floor, the XDR checks before signing — are in this
-repo but are exercised through Weave's SEP-24 pages today, not through this UI.
+**The mainnet side is behind one environment variable.** With
+`NEXT_PUBLIC_MAINNET_LIVE` unset, the testnet Pollar client stays mounted and
+the mainnet side of the switch renders *Coming soon* with a link to the proof
+page. With it set to `true` (and the mainnet keys present), the switch remounts
+the Pollar client on the mainnet app and the proxy uses the live Weave key. On
+mainnet the legs whose providers are not switched on yet are disabled in place,
+with the reason on hover: naira top-ups (NEAR Intents' Stellar pairs are paused
+upstream) and the Bolivian ramp (until Pollar enables it on the app). Sends to
+a Nigerian bank run live over LI.FI / Circle CCTP: two signatures, 2 USDC
+minimum, every XDR checked before the wallet signs.
 
 The hosted demo runs on **testnet**, as the Pollar team asked for hackathon
 builds, with clearly-labelled stand-ins. The Nigerian leg has already run on
@@ -261,6 +264,7 @@ pnpm dev                       # http://localhost:3006
 | `NEXT_PUBLIC_POLLAR_PUBLISHABLE_KEY` | Pollar **testnet** app key from [dashboard.pollar.xyz](https://dashboard.pollar.xyz). On that app add your origin under **Domains** and `<origin>/auth/callback` to the **redirect URIs**, or sign-in fails with `ORIGIN_NOT_ALLOWED` / `APPLICATION_HAS_NO_REDIRECT_URIS`. |
 | `NEXT_PUBLIC_POLLAR_PUBLISHABLE_KEY_MAINNET` | Pollar **mainnet** app key. Optional until mainnet is switched on. |
 | `NEXT_PUBLIC_POLLAR_NETWORK` | Which side a fresh browser starts on: `testnet` (default) or `mainnet`. |
+| `NEXT_PUBLIC_MAINNET_LIVE` | `true` wires the mainnet side of the switch to the live keys; unset shows *Coming soon*. |
 | `NEXT_PUBLIC_POLLAR_REDIRECT_URI` | Where the OAuth popup lands, e.g. `http://localhost:3006/auth/callback`. |
 | `WEAVE_API_BASE` | `https://api.paywithweave.com/api/v1` |
 | `WEAVE_SECRET_KEY` | A Weave **sandbox** secret key (`sk_test_…`). Sign up at [paywithweave.com](https://paywithweave.com); keys are under Settings → API keys. |

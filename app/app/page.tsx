@@ -63,10 +63,14 @@ export default function Dashboard() {
   const closeTour = () => { setTour(false); markTourDone(); };
   // ── rates (live where available; the design's numbers are illustrative) ──
   const [ngnPerUsd, setNgnPerUsd] = useState(1400);
+  // On mainnet the Bolivian ramp exists only once Pollar enables it on the app; the mock covers testnet.
+  const [boAvailable, setBoAvailable] = useState<boolean | null>(null);
+  // Naira top-ups (NGN → Stellar) ride NEAR Intents on mainnet, whose Stellar pairs are paused upstream.
+  const NGN_IN_AVAILABLE = IS_TESTNET;
   const [bobPerUsd, setBobPerUsd] = useState(6.96);
   useEffect(() => {
     weave(`quotes?from=${STELLAR_USDC}&to=${NGN}&amount=1&amountIn=source`).then(r => { if (r.ok && r.data?.estimatedDest) setNgnPerUsd(Number(r.data.estimatedDest)); });
-    bestQuote(getClient(), 'offramp', 100).then(q => setBobPerUsd(Number(q.rate))).catch(() => {});
+    bestQuote(getClient(), 'offramp', 100).then(q => { setBobPerUsd(Number(q.rate)); setBoAvailable(true); }).catch(() => setBoAvailable(false));
   }, [getClient]);
 
   // ── handle ─────────────────────────────────────────────────────────────
@@ -275,7 +279,7 @@ export default function Dashboard() {
           </div>
           </div>
           <div data-tour="links" style={{ display: 'flex', gap: 28, marginTop: 22, flexWrap: 'wrap', alignItems: 'baseline', width: 'fit-content' }}>
-            <button className="link-serif" onClick={startAdd}>Add money</button>
+            <button className="link-serif" onClick={startAdd} disabled={!NGN_IN_AVAILABLE} title={!NGN_IN_AVAILABLE ? 'Naira top-ups on mainnet wait for NEAR Intents to resume its Stellar pairs.' : undefined} style={!NGN_IN_AVAILABLE ? { opacity: .4, cursor: 'not-allowed' } : undefined}>Add money</button>
             {handle ? (
               <Link href="/app/request-naira" className="link-serif" style={{ textDecoration: 'none' }} title="Request naira from anyone in Nigeria — paid out to you in BOB">Get paid at @{handle}</Link>
             ) : claiming ? (
@@ -290,7 +294,7 @@ export default function Dashboard() {
             )}
             <button className="link-serif" onClick={startWithdraw}>Withdraw to my bank</button>
           </div>
-          <div style={{ font: '12px var(--font-body)', color: '#8A8A80', marginTop: 10 }}>{wallet ? shortG(wallet.address) : ''}{IS_TESTNET ? ' · testnet · fees sponsored by Pollar' : ''}</div>
+          <div style={{ font: '12px var(--font-body)', color: '#8A8A80', marginTop: 10 }}>{wallet ? shortG(wallet.address) : ''}{IS_TESTNET ? ' · testnet · fees sponsored by Pollar' : ' · mainnet · real money'}</div>
         </section>
 
         {/* Send flow */}
@@ -300,7 +304,7 @@ export default function Dashboard() {
               <div className="prose-step">I want to send money to</div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <Pill on={to === 'ng'} dot="#4F7A5C" onClick={() => pickTo('ng')}>a bank in Nigeria</Pill>
-                <Pill on={to === 'bo'} dot="#B8C7BA" onClick={() => pickTo('bo')}>a bank in Bolivia</Pill>
+                <Pill on={to === 'bo'} dot="#B8C7BA" disabled={boAvailable === false} title={boAvailable === false ? 'Pollar has not enabled the Bolivian ramp on this mainnet app yet.' : undefined} onClick={() => pickTo('bo')}>a bank in Bolivia</Pill>
                 <Pill on={to === 'fr'} dot="#2F4A3B" onClick={() => pickTo('fr')}>a friend on Corridor</Pill>
               </div>
               {/* The rest of the African side: on Weave's rail already, waiting on a switch. */}
@@ -320,8 +324,8 @@ export default function Dashboard() {
                 <div className="prose-step">paying with</div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <Pill on={from === 'bal'} onClick={() => pickFrom('bal')}>my balance</Pill>
-                  <Pill on={from === 'ngn'} disabled={blocked === 'ngn'} title={blocked === 'ngn' ? 'Naira to a Nigerian bank is just a local transfer.' : undefined} onClick={() => pickFrom('ngn')}>a naira bank transfer</Pill>
-                  <Pill on={from === 'bob'} disabled={blocked === 'bob'} title={blocked === 'bob' ? 'Bolivianos to a Bolivian bank is just a local transfer.' : undefined} onClick={() => pickFrom('bob')}>a Bolivian bank QR</Pill>
+                  <Pill on={from === 'ngn'} disabled={blocked === 'ngn' || !NGN_IN_AVAILABLE} title={blocked === 'ngn' ? 'Naira to a Nigerian bank is just a local transfer.' : !NGN_IN_AVAILABLE ? 'Naira top-ups on mainnet wait for NEAR Intents to resume its Stellar pairs.' : undefined} onClick={() => pickFrom('ngn')}>a naira bank transfer</Pill>
+                  <Pill on={from === 'bob'} disabled={blocked === 'bob' || boAvailable === false} title={blocked === 'bob' ? 'Bolivianos to a Bolivian bank is just a local transfer.' : boAvailable === false ? 'Pollar has not enabled the Bolivian ramp on this mainnet app yet.' : undefined} onClick={() => pickFrom('bob')}>a Bolivian bank QR</Pill>
                 </div>
                 <div style={{ font: '14px var(--font-body)', color: '#8A8A80' }}>{sourceHint}</div>
                 {from === 'ngn' && (
