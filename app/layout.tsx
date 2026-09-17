@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter, Fraunces, Roboto } from 'next/font/google';
+// Pollar's modals (login, tx history, receive, ramp, KYC…) ship their CSS separately.
+import '@pollar/react/styles.css';
 import './globals.css';
 import { Providers } from './providers';
 
