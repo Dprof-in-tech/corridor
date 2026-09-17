@@ -100,7 +100,7 @@ export default function BobToNigeria() {
           <p className="text-[13.5px] text-ink-muted">Scan one BOB QR. We turn it into USDC in your wallet and immediately into naira in their bank — you don't touch the middle.</p>
           <div>
             <span className={label}>They receive (sized in USDC)</span>
-            <div className="flex items-center gap-3 rounded-2xl border border-hair bg-white px-4"><span className="text-ink-muted font-semibold">$</span><input inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value.replace(/[^\d.]/g, ''))} placeholder="25" autoFocus className="flex-1 py-3.5 text-[24px] font-semibold outline-none bg-transparent" /><span className="text-[13px] font-semibold text-ink-muted">USDC</span></div>
+            <div className="field flex items-center gap-3 px-4"><span className="text-ink-muted font-semibold">$</span><input inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value.replace(/[^\d.]/g, ''))} placeholder="25" autoFocus className="flex-1 py-3.5 text-[24px] font-semibold outline-none bg-transparent" /><span className="text-[13px] font-semibold text-ink-muted">USDC</span></div>
             <div className="mt-2 text-[13px] text-ink-muted min-h-5">
               {a > 0 && a < 2 ? <span className="text-terracotta">Minimum 2 USDC.</span> : a >= 2 ? <>≈ <b className="text-ink">{fmtNgn(ngnEstimate)}</b> to them · you pay <b className="text-ink">{bob ? `Bs ${bob.bob.toFixed(2)}` : '…'}</b>{bob ? ` via ${bob.quote.provider} (${bob.quote.rail})` : ''}</> : ''}
             </div>

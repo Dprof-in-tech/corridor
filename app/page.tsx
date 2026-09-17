@@ -65,7 +65,7 @@ export default function Landing() {
           <p className="text-[13px] text-ink-muted mt-1">A Stellar wallet is created for you. No seed phrases.</p>
           <div className="mt-5"><GoogleButton disabled={busy} onClick={() => login({ provider: 'google' })} /></div>
           <div className="my-4 flex items-center gap-3 text-[11px] text-ink-faint"><span className="h-px flex-1 bg-hair" />or email<span className="h-px flex-1 bg-hair" /></div>
-          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" type="email" className="w-full rounded-2xl border border-hair bg-white px-4 py-3 text-[15px] outline-none focus:border-forest" />
+          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" type="email" className="field w-full px-4 py-3 text-[15px]" />
           <button disabled={!/.+@.+\..+/.test(email)} onClick={() => login({ provider: 'email', email })} className={`mt-3 w-full rounded-2xl py-3 text-[14.5px] font-semibold text-cream ${/.+@.+\..+/.test(email) ? 'bg-forest hover:bg-forest-deep' : 'bg-forest/40'}`}>Send me a code</button>
           <button onClick={() => openLoginModal()} className="mt-3 w-full text-[12.5px] text-ink-muted hover:text-ink">More sign-in options (Freighter, xBull…)</button>
           {authError && <p className="mt-4 text-[12.5px] text-terracotta bg-terracotta-soft rounded-xl px-3 py-2">{authError}</p>}

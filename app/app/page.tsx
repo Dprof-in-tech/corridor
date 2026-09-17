@@ -53,7 +53,7 @@ export default function Home() {
           ) : (
             <>
               <span className="text-ink-muted">Claim a handle:</span>
-              <input value={handle} onChange={e => setHandle(e.target.value.toLowerCase())} placeholder="ada" className="rounded-full border border-hair px-3 py-1 w-32 outline-none focus:border-forest" />
+              <input value={handle} onChange={e => setHandle(e.target.value.toLowerCase())} placeholder="ada" className="field !rounded-full px-3 py-1 w-32" />
               <button onClick={claim} disabled={handle.length < 3} className="rounded-full bg-ink text-cream px-3 py-1 disabled:opacity-40">Claim</button>
               {hErr && <span className="text-terracotta">{hErr}</span>}
             </>

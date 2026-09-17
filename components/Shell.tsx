@@ -1,17 +1,21 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePollar } from '@pollar/react';
 import { shortG } from '../lib/weave';
 
 // Authenticated frame: header with the Pollar wallet chip, cream canvas.
 export function Shell({ children, title, back }: { children: React.ReactNode; title?: string; back?: string }) {
-  const { isAuthenticated, wallet, logout, walletBalance, refreshWalletBalance } = usePollar();
+  const { isAuthenticated, wallet, logout, walletBalance, refreshWalletBalance, getClient } = usePollar();
   const router = useRouter();
 
-  useEffect(() => { if (!isAuthenticated) router.replace('/'); }, [isAuthenticated, router]);
+  // Don't bounce to the landing page until the SDK has had a chance to restore
+  // a persisted session — on a hard load isAuthenticated is false for a tick.
+  const [ready, setReady] = useState(false);
+  useEffect(() => { let live = true; getClient().ready().then(() => live && setReady(true)).catch(() => live && setReady(true)); return () => { live = false; }; }, [getClient]);
+  useEffect(() => { if (ready && !isAuthenticated) router.replace('/'); }, [ready, isAuthenticated, router]);
   useEffect(() => { if (isAuthenticated && walletBalance.step === 'idle') void refreshWalletBalance(); }, [isAuthenticated, walletBalance.step, refreshWalletBalance]);
 
   const usdc = walletBalance.step === 'loaded' ? walletBalance.data.balances.find(b => b.code === 'USDC')?.balance : null;
@@ -52,6 +56,6 @@ export function Shell({ children, title, back }: { children: React.ReactNode; ti
 }
 
 export const card = 'rounded-3xl border border-hair bg-white/85 backdrop-blur p-5 shadow-[0_20px_60px_-32px_rgba(0,0,0,0.25)]';
-export const input = 'w-full rounded-2xl border border-hair bg-white px-4 py-3 text-[15px] text-ink outline-none focus:border-forest';
+export const input = 'field w-full px-4 py-3 text-[15px] text-ink';
 export const label = 'block text-[11.5px] font-semibold uppercase tracking-wide text-ink-soft mb-2';
 export const primary = (on: boolean) => `w-full rounded-2xl py-3.5 text-[15px] font-semibold text-cream transition ${on ? 'bg-forest hover:bg-forest-deep' : 'bg-forest/40 cursor-not-allowed'}`;

@@ -59,7 +59,7 @@ export default function PayRequestClient({ id }: { id: string }) {
   const who = req?.requester.handle ? `@${req.requester.handle}` : req ? shortG(req.requester.address) : '';
 
   const cardCls = 'rounded-3xl border border-hair bg-white/90 p-6 shadow-[0_20px_60px_-32px_rgba(0,0,0,0.25)]';
-  const inputCls = 'w-full rounded-2xl border border-hair bg-white px-4 py-3 text-[15px] outline-none focus:border-forest';
+  const inputCls = 'field w-full px-4 py-3 text-[15px]';
   return (
     <div className="min-h-screen flex flex-col">
       <header className="mx-auto w-full max-w-md px-5 py-5 flex items-center gap-2"><span className="w-8 h-8 rounded-full bg-forest text-cream flex items-center justify-center font-display font-bold text-sm">W</span><span className="font-display font-semibold">Corridor</span><span className="ml-auto text-[12px] text-ink-faint">Pay from Nigeria</span></header>

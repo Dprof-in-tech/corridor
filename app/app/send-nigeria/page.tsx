@@ -83,7 +83,7 @@ export default function SendNigeria() {
         <div className={`${card} reveal space-y-5`}>
           <div>
             <span className={label}>Amount to send</span>
-            <div className="flex items-center gap-3 rounded-2xl border border-hair bg-white px-4">
+            <div className="field flex items-center gap-3 px-4">
               <span className="text-ink-muted font-semibold">$</span>
               <input inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value.replace(/[^\d.]/g, ''))} placeholder="25" autoFocus className="flex-1 py-3.5 text-[24px] font-semibold outline-none bg-transparent" />
               <span className="text-[13px] font-semibold text-ink-muted">USDC</span>

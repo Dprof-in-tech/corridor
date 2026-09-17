@@ -56,7 +56,7 @@ export default function SendFriend() {
           </div>
           <div>
             <span className={label}>Amount</span>
-            <div className="flex items-center gap-3 rounded-2xl border border-hair bg-white px-4"><span className="text-ink-muted font-semibold">$</span><input inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value.replace(/[^\d.]/g, ''))} placeholder="10" className="flex-1 py-3.5 text-[24px] font-semibold outline-none bg-transparent" /><span className="text-[13px] font-semibold text-ink-muted">USDC</span></div>
+            <div className="field flex items-center gap-3 px-4"><span className="text-ink-muted font-semibold">$</span><input inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value.replace(/[^\d.]/g, ''))} placeholder="10" className="flex-1 py-3.5 text-[24px] font-semibold outline-none bg-transparent" /><span className="text-[13px] font-semibold text-ink-muted">USDC</span></div>
             <div className="mt-2 text-[13px] text-ink-muted">{usdcBal != null ? `Balance ${fmtUsdc(usdcBal)}` : ''}</div>
           </div>
           <div><span className={label}>Note (optional)</span><input value={memo} onChange={e => setMemo(e.target.value)} placeholder="rent, thanks, ⚽" className={input} maxLength={28} /></div>

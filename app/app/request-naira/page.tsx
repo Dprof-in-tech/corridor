@@ -119,7 +119,7 @@ export default function RequestNaira() {
           <p className="text-[13.5px] text-ink-muted">Someone in Nigeria pays naira by bank transfer; bolivianos land in your bank. Keep this page open — it completes the payout when the money arrives.</p>
           <div>
             <span className={label}>You want to receive</span>
-            <div className="flex items-center gap-3 rounded-2xl border border-hair bg-white px-4"><span className="text-ink-muted font-semibold">Bs</span><input inputMode="decimal" value={bobAmount} onChange={e => setBobAmount(e.target.value.replace(/[^\d.]/g, ''))} placeholder="200" autoFocus className="flex-1 py-3.5 text-[24px] font-semibold outline-none bg-transparent" /><span className="text-[13px] font-semibold text-ink-muted">BOB</span></div>
+            <div className="field flex items-center gap-3 px-4"><span className="text-ink-muted font-semibold">Bs</span><input inputMode="decimal" value={bobAmount} onChange={e => setBobAmount(e.target.value.replace(/[^\d.]/g, ''))} placeholder="200" autoFocus className="flex-1 py-3.5 text-[24px] font-semibold outline-none bg-transparent" /><span className="text-[13px] font-semibold text-ink-muted">BOB</span></div>
             <div className="mt-2 text-[13px] text-ink-muted min-h-5">{quote ? <>≈ {fmtUsdc(quote.usdc)} via {quote.quote.provider} · payer sends <b className="text-ink">{fmtNgn(ngn)}</b></> : ''}</div>
           </div>
           {required.length > 0 && (
