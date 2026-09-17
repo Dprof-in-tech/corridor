@@ -15,6 +15,8 @@ const ALLOW: Array<[string, RegExp]> = [
   ['POST', /^orders$/],
   ['GET',  /^orders\/[\w-]+$/],
   ['POST', /^orders\/[\w-]+\/steps\/\d+\/(approve-tx|bridge-tx|submitted)$/],
+  ['POST', /^sandbox\/stellar-faucet$/],   // sandbox keys only (the API enforces it)
+  ['GET',  /^sandbox\/stellar-simulator$/],
 ];
 
 async function proxy(req: NextRequest, parts: string[]) {

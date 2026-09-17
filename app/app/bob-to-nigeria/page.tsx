@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePollar } from '@pollar/react';
 import { Shell, card, input, label, primary } from '../../../components/Shell';
 import { weave, bankMatches, fmtNgn, fmtUsdc, STELLAR_USDC, NGN, type Bank } from '../../../lib/weave';
-import { bobForUsdc, isKycBlocked, type RampQuote } from '../../../lib/pollar-ramps';
+import { IS_TESTNET } from '../../../lib/weave';
+import { bobForUsdc, isKycBlocked, startOnRamp, type RampQuote, type OnRampResult } from '../../../lib/pollar-ramps';
 import { createNigeriaSend, executeNigeriaSend } from '../../../lib/nigeria-send';
 
 // Bolivia → Nigeria, chained in ONE session: pay a BOB QR (Pollar / Stereum)
@@ -15,7 +16,7 @@ import { createNigeriaSend, executeNigeriaSend } from '../../../lib/nigeria-send
 type Step = 'form' | 'quoting' | 'pay_qr' | 'waiting_usdc' | 'sending' | 'done' | 'error';
 
 export default function BobToNigeria() {
-  const { wallet, getClient, signAndSubmitTx, refreshWalletBalance } = usePollar();
+  const { wallet, getClient, signAndSubmitTx, runTx, refreshWalletBalance } = usePollar();
   const [step, setStep] = useState<Step>('form');
   const [error, setError] = useState<string | null>(null);
   const [amount, setAmount] = useState('');               // USDC the recipient's payout is sized in
@@ -24,11 +25,12 @@ export default function BobToNigeria() {
   const [bankQuery, setBankQuery] = useState(''); const [bankCode, setBankCode] = useState('');
   const [acct, setAcct] = useState(''); const [acctName, setAcctName] = useState(''); const [resolving, setResolving] = useState(false); const [acctErr, setAcctErr] = useState<string | null>(null);
   const [bob, setBob] = useState<{ bob: number; quote: RampQuote } | null>(null);
-  const [ramp, setRamp] = useState<any>(null);
+  const [ramp, setRamp] = useState<OnRampResult | null>(null);
   const [order, setOrder] = useState<any>(null);
   const [stage, setStage] = useState<string | null>(null);
   const [hash, setHash] = useState<string | null>(null);
   const acctRef = useRef<HTMLInputElement>(null);
+  const mockPayResolver = useRef<(() => void) | null>(null);
 
   useEffect(() => { weave('institutions?currency=NGN').then(r => r.ok && setBanks(r.data ?? [])); }, []);
   useEffect(() => {
@@ -66,16 +68,21 @@ export default function BobToNigeria() {
     try {
       // 1. Open the BOB on-ramp into THIS wallet (Stereum QR).
       const before = await usdcBalance();
-      const onramp = await getClient().createOnRamp({ quoteId: bob.quote.quoteId, amount: bob.bob, currency: 'BOB', country: 'BO', walletAddress: wallet.address });
+      const onramp = await startOnRamp(getClient(), bob.quote, bob.bob, wallet.address, a);
       setRamp(onramp);
       if (isKycBlocked(onramp)) { setStep('pay_qr'); return; } // page shows the KYC link
       setStep('pay_qr');
 
-      // 2. Wait for Pollar to mark the on-ramp complete, then for USDC to land.
-      await getClient().pollRampTransaction(onramp.txId, { intervalMs: 5000, timeoutMs: 45 * 60_000 });
+      // 2. Wait for the on-ramp to settle, then for USDC to land in the wallet.
+      if (onramp.mocked) {
+        await new Promise<void>(res => { mockPayResolver.current = res; });   // user taps "I've paid" on the mock QR
+        await onramp.settleMock!();                                            // "Stereum settlement" via the sandbox faucet
+      } else {
+        await getClient().pollRampTransaction(onramp.txId, { intervalMs: 12000, timeoutMs: 45 * 60_000 });
+      }
       setStep('waiting_usdc');
       let landed = before;
-      for (let i = 0; i < 60; i++) { landed = await usdcBalance(); if (landed - before >= a * 0.97) break; await new Promise(r => setTimeout(r, 5000)); }
+      for (let i = 0; i < 40; i++) { landed = await usdcBalance(); if (landed - before >= a * 0.97) break; await new Promise(r => setTimeout(r, 6000)); }
       const sendAmount = Math.min(a, Math.floor((landed - before) * 100) / 100);
       if (sendAmount < 2) throw new Error(`Only ${fmtUsdc(landed - before)} arrived — below the 2 USDC bridge minimum.`);
 
@@ -83,7 +90,7 @@ export default function BobToNigeria() {
       setStep('sending');
       const created = await createNigeriaSend(wallet.address, sendAmount, { bankCode, bankName: bankQuery, accountNumber: acct, accountName: acctName });
       setOrder(created.order);
-      const { order: final, hash: h } = await executeNigeriaSend(created, signAndSubmitTx as any, (s, d) => { setStage(s); if (s === 'done') setHash(d ?? null); }, setOrder);
+      const { order: final, hash: h } = await executeNigeriaSend(created, { signAndSubmitTx: signAndSubmitTx as any, runTx: runTx as any }, (s, d) => { setStage(s); if (s === 'done') setHash(d ?? null); }, setOrder);
       setHash(h);
       if (final.status !== 'completed') throw new Error('The naira payout could not be completed; your USDC stays in your wallet.');
       setStep('done'); void refreshWalletBalance();
@@ -91,7 +98,7 @@ export default function BobToNigeria() {
   }
 
   const qr = ramp?.depositInstructions?.scannable;
-  const qrSrc = qr?.image ? `data:${qr.image.mediaType};${qr.image.encoding === 'base64' ? 'base64,' : 'utf8,'}${qr.image.encoding === 'base64' ? qr.image.data : encodeURIComponent(qr.image.data)}` : null;
+  const qrSrc = qr?.image?.src ?? (qr?.image?.data ? `data:${qr.image.mediaType};${qr.image.encoding === 'base64' ? 'base64,' : 'utf8,'}${qr.image.encoding === 'base64' ? qr.image.data : encodeURIComponent(qr.image.data)}` : null);
 
   return (
     <Shell title="Pay a Nigerian bank from Bolivia" back="/app">
@@ -137,6 +144,12 @@ export default function BobToNigeria() {
                 <dl className="mt-3 text-left divide-y divide-hair text-[13px]">
                   {(ramp.depositInstructions?.fields ?? []).map((f: any) => <div key={f.key} className="flex justify-between py-2"><dt className="text-ink-muted">{f.label}</dt><dd className="font-mono">{f.value}</dd></div>)}
                 </dl>
+                {ramp.mocked && (
+                  <div className="mt-3 rounded-xl bg-tan-mist text-tan-deep text-[12.5px] px-3 py-2 text-left">
+                    <b>Mocked BOB on-ramp (testnet).</b> On mainnet this QR is Stereum's and Pollar settles USDC to your wallet. Here, tapping the button simulates that settlement with testnet USDC.
+                    <button onClick={() => mockPayResolver.current?.()} className="mt-2 w-full rounded-xl bg-ink text-cream py-2 text-[13px] font-semibold">I've paid the QR (simulate)</button>
+                  </div>
+                )}
               </div>
             )
           )}
@@ -151,7 +164,7 @@ export default function BobToNigeria() {
           <div className="mx-auto w-14 h-14 rounded-full bg-forest-mist text-forest-deep flex items-center justify-center text-2xl">✓</div>
           <div className="mt-3 font-display text-[22px] font-semibold">Naira delivered</div>
           <p className="mt-1 text-[14px] text-ink-muted">Bs {bob?.bob.toFixed(2)} → {fmtNgn(order?.destAmount)} to {acctName}</p>
-          {hash && <a className="mt-3 inline-block text-[12px] text-forest underline" target="_blank" rel="noreferrer" href={`https://stellar.expert/explorer/public/tx/${hash}`}>Stellar transaction</a>}
+          {hash && <a className="mt-3 inline-block text-[12px] text-forest underline" target="_blank" rel="noreferrer" href={`https://stellar.expert/explorer/${IS_TESTNET ? 'testnet' : 'public'}/tx/${hash}`}>Stellar transaction</a>}
         </div>
       )}
       {step === 'error' && (

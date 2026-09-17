@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePollar } from '@pollar/react';
-import { shortG } from '../lib/weave';
+import { shortG, IS_TESTNET } from '../lib/weave';
 
 // Authenticated frame: header with the Pollar wallet chip, cream canvas.
 export function Shell({ children, title, back }: { children: React.ReactNode; title?: string; back?: string }) {
@@ -41,6 +41,11 @@ export function Shell({ children, title, back }: { children: React.ReactNode; ti
           </div>
         </div>
       </header>
+      {IS_TESTNET && (
+        <div className="bg-tan-mist border-b border-hair text-tan-deep text-[12px] text-center px-4 py-1.5">
+          <b>Testnet demo.</b> Pollar wallet + sponsored txs are real on Stellar testnet · Nigerian rails run in Weave sandbox · the bridge is a labelled simulator · BOB payouts are mocked (Pollar runs them on mainnet).
+        </div>
+      )}
       <main className="mx-auto w-full max-w-2xl px-5 py-7 flex-1">
         {(title || back) && (
           <div className="mb-5 flex items-center gap-3">

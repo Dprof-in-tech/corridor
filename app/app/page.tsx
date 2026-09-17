@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePollar } from '@pollar/react';
 import { Shell, card } from '../../components/Shell';
-import { shortG } from '../../lib/weave';
+import { shortG, IS_TESTNET } from '../../lib/weave';
 
 export default function Home() {
   const { wallet, walletBalance, refreshWalletBalance, openRampModal, openReceiveModal, openTxHistoryModal } = usePollar();
@@ -38,7 +38,7 @@ export default function Home() {
           <div>
             <div className="text-[11.5px] uppercase tracking-wide text-ink-muted">Your Stellar wallet</div>
             <div className="mt-1 font-display text-[34px] font-semibold text-ink">{usdc == null ? '…' : usdc.toLocaleString(undefined, { maximumFractionDigits: 2 })} <span className="text-[16px] text-ink-muted font-body font-medium">USDC</span></div>
-            <div className="mt-1 text-[12.5px] text-ink-muted font-mono" title={wallet?.address}>{wallet ? shortG(wallet.address) : ''}{xlm != null && <span className="ml-2 font-body">· {xlm.toFixed(2)} XLM for fees</span>}</div>
+            <div className="mt-1 text-[12.5px] text-ink-muted font-mono" title={wallet?.address}>{wallet ? shortG(wallet.address) : ''}{xlm != null && !IS_TESTNET && <span className="ml-2 font-body">· {xlm.toFixed(2)} XLM for fees</span>}{IS_TESTNET && <span className="ml-2 font-body">· fees sponsored by Pollar</span>}</div>
           </div>
           <div className="flex flex-col gap-2 text-right">
             <button onClick={() => refreshWalletBalance()} className="text-[12.5px] text-ink-muted hover:text-ink">Refresh</button>
@@ -46,7 +46,7 @@ export default function Home() {
             <button onClick={() => openReceiveModal()} className="text-[12.5px] text-ink-muted hover:text-ink">Receive</button>
           </div>
         </div>
-        {xlm != null && xlm < 2 && <p className="mt-3 text-[12.5px] text-tan-deep bg-tan-mist rounded-xl px-3 py-2">Sending to Nigeria needs about 2 XLM in your wallet for Stellar network fees.</p>}
+        {!IS_TESTNET && xlm != null && xlm < 2 && <p className="mt-3 text-[12.5px] text-tan-deep bg-tan-mist rounded-xl px-3 py-2">Sending to Nigeria needs about 2 XLM in your wallet for Stellar network fees.</p>}
         <div className="mt-4 flex flex-wrap items-center gap-2 text-[13px]">
           {claimed ? (
             <span className="rounded-full bg-forest-mist text-forest-deep px-3 py-1">Friends can pay you at <b>@{claimed}</b></span>

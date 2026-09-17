@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePollar } from '@pollar/react';
 import { Shell, card, input, label, primary } from '../../../components/Shell';
-import { weave, bankMatches, fmtNgn, fmtUsdc, STELLAR_USDC, NGN, type Bank } from '../../../lib/weave';
+import { weave, bankMatches, fmtNgn, fmtUsdc, STELLAR_USDC, NGN, IS_TESTNET, type Bank } from '../../../lib/weave';
 import { type Stage } from '../../../lib/stellar-bridge';
 import { createNigeriaSend, executeNigeriaSend } from '../../../lib/nigeria-send';
 
@@ -14,7 +14,7 @@ import { createNigeriaSend, executeNigeriaSend } from '../../../lib/nigeria-send
 type Mode = 'form' | 'signing' | 'settling' | 'done' | 'error';
 
 export default function SendNigeria() {
-  const { wallet, signAndSubmitTx, walletBalance, refreshWalletBalance } = usePollar();
+  const { wallet, signAndSubmitTx, runTx, walletBalance, refreshWalletBalance } = usePollar();
   const usdcBal = walletBalance.step === 'loaded' ? Number(walletBalance.data.balances.find(b => b.code === 'USDC')?.balance ?? 0) : null;
 
   const [mode, setMode] = useState<Mode>('form');
@@ -64,7 +64,7 @@ export default function SendNigeria() {
       setOrder(created.order);
       // Pollar signs (custodial: server-side; external wallet: in-extension) and submits.
       const { order: final, hash: h } = await executeNigeriaSend(
-        created, signAndSubmitTx as any,
+        created, { signAndSubmitTx: signAndSubmitTx as any, runTx: runTx as any },
         (s, d) => { setStage(s as any); if (s === 'done') { setHash(d ?? null); setMode('settling'); } },
         setOrder, { standing },
       );
@@ -75,7 +75,7 @@ export default function SendNigeria() {
     } catch (e: any) { setError(e?.message ?? 'Something went wrong'); setMode(order ? 'error' : 'form'); }
   }
 
-  const stageLabel: Record<string, string> = { quote: 'Locking the rate and opening the payout…', approve: 'Sign 1 of 2 — allow USDC to move', bridge: 'Sign 2 of 2 — bridge to the payout', submitting: 'Submitting…', done: 'Bridging via Circle CCTP…' };
+  const stageLabel: Record<string, string> = { quote: 'Locking the rate and opening the payout…', pay: 'Paying from your wallet (sponsored)…', approve: 'Sign 1 of 2 — allow USDC to move', bridge: 'Sign 2 of 2 — bridge to the payout', submitting: 'Submitting…', done: IS_TESTNET ? 'Testnet bridge (simulated) settling…' : 'Bridging via Circle CCTP…' };
 
   return (
     <Shell title="Send to a Nigerian bank" back="/app">
@@ -110,7 +110,7 @@ export default function SendNigeria() {
               <div className={`mt-2 text-[13px] min-h-5 ${acctErr ? 'text-terracotta' : 'text-forest-deep font-semibold'}`}>{resolving ? <span className="text-ink-muted font-normal">Checking…</span> : acctName || acctErr}</div>
             </div>
           )}
-          {acctName && (
+          {acctName && !IS_TESTNET && (
             <label className="flex items-start gap-3 text-[13px] text-ink-soft cursor-pointer">
               <input type="checkbox" checked={standing} onChange={e => setStanding(e.target.checked)} className="mt-0.5 accent-[#3D6B50]" />
               <span><b>Approve future sends</b> — one bounded allowance (up to 1,000 USDC, ~30 days) to Circle's CCTP contract, so your next transfers need a single signature.</span>
@@ -118,7 +118,7 @@ export default function SendNigeria() {
           )}
           {error && <p className="text-[13px] text-terracotta bg-terracotta-soft rounded-xl px-3 py-2">{error}</p>}
           <button disabled={!can} onClick={send} className={primary(can)}>{a ? `Send ${fmtUsdc(a)}` : 'Send'}</button>
-          <p className="text-[11.5px] text-ink-faint text-center">0.85% Weave + 0.25% bridge · ~3 min · non-custodial: USDC burns on Stellar, mints into the payout</p>
+          <p className="text-[11.5px] text-ink-faint text-center">{IS_TESTNET ? 'Testnet: naira rails sandboxed, bridge simulated — one sponsored payment from your wallet' : '0.85% Weave + 0.25% bridge · ~3 min · non-custodial: USDC burns on Stellar, mints into the payout'}</p>
         </div>
       )}
 
@@ -127,9 +127,9 @@ export default function SendNigeria() {
           <div className="font-display text-[20px] font-semibold">{mode === 'signing' ? 'Approve in your wallet' : 'On its way'}</div>
           <Timeline items={[
             ['Payout opened in Nigeria', !!order],
-            ['USDC allowance signed', ['bridge', 'submitting', 'done'].includes(stage as string) || mode === 'settling'],
-            ['Bridge signed & submitted', ['done'].includes(stage as string) || mode === 'settling'],
-            ['Minted on Base → Paycrest', order?.steps?.[0]?.status === 'done'],
+            [IS_TESTNET ? 'USDC paid from your wallet' : 'USDC allowance signed', ['bridge', 'submitting', 'done'].includes(stage as string) || mode === 'settling'],
+            [IS_TESTNET ? 'Bridge simulated (testnet)' : 'Bridge signed & submitted', ['done'].includes(stage as string) || mode === 'settling'],
+            [IS_TESTNET ? 'Naira leg (sandbox)' : 'Minted on Base → Paycrest', order?.steps?.[0]?.status === 'done'],
             ['Naira paid to bank', order?.status === 'completed'],
           ]} />
           <div className="flex items-center gap-2 text-[13px] text-ink-muted">
@@ -137,7 +137,7 @@ export default function SendNigeria() {
             {mode === 'signing' ? stageLabel[stage ?? 'quote'] : `Settling… ${order?.status ?? ''}`}
           </div>
           {order && <div className="text-[12.5px] text-ink-muted">Recipient gets <b className="text-ink">{fmtNgn(order.destAmount)}</b> · {acctName}</div>}
-          {hash && <a className="text-[12px] text-forest underline" target="_blank" rel="noreferrer" href={`https://stellar.expert/explorer/public/tx/${hash}`}>View Stellar transaction</a>}
+          {hash && <a className="text-[12px] text-forest underline" target="_blank" rel="noreferrer" href={`https://stellar.expert/explorer/${IS_TESTNET ? 'testnet' : 'public'}/tx/${hash}`}>View Stellar transaction</a>}
         </div>
       )}
 
@@ -146,7 +146,7 @@ export default function SendNigeria() {
           <div className="mx-auto w-14 h-14 rounded-full bg-forest-mist text-forest-deep flex items-center justify-center text-2xl">✓</div>
           <div className="mt-3 font-display text-[22px] font-semibold">Naira delivered</div>
           <p className="mt-1 text-[14px] text-ink-muted">{fmtNgn(order?.destAmount)} sent to {acctName} · {bankQuery}</p>
-          {hash && <a className="mt-3 inline-block text-[12px] text-forest underline" target="_blank" rel="noreferrer" href={`https://stellar.expert/explorer/public/tx/${hash}`}>Stellar transaction</a>}
+          {hash && <a className="mt-3 inline-block text-[12px] text-forest underline" target="_blank" rel="noreferrer" href={`https://stellar.expert/explorer/${IS_TESTNET ? 'testnet' : 'public'}/tx/${hash}`}>Stellar transaction</a>}
           <button onClick={() => { setMode('form'); setOrder(null); setHash(null); setAmount(''); setBankCode(''); setBankQuery(''); setAcct(''); setAcctName(''); setStage(null); }} className={`${primary(true)} mt-5`}>Send another</button>
         </div>
       )}

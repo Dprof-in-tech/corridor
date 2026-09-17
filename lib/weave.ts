@@ -44,6 +44,14 @@ export async function pollOrder(orderId: string, onTick: (o: any) => void, opts:
       if (['completed', 'failed', 'expired', 'refunded'].includes(r.data.status)) return r.data;
     }
     if (Date.now() - started > (opts.timeoutMs ?? 30 * 60_000)) throw new Error('Timed out waiting for the transfer.');
-    await new Promise(res => setTimeout(res, opts.intervalMs ?? 4000));
+    // Pollar testnet keys are capped at 1,000 requests/day — poll gently.
+    await new Promise(res => setTimeout(res, opts.intervalMs ?? 8000));
   }
 }
+
+export const POLLAR_NETWORK: 'mainnet' | 'testnet' = process.env.NEXT_PUBLIC_POLLAR_NETWORK === 'mainnet' ? 'mainnet' : 'testnet';
+export const IS_TESTNET = POLLAR_NETWORK === 'testnet';
+export const USDC_ISSUER: Record<'mainnet' | 'testnet', string> = {
+  mainnet: 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
+  testnet: 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5',
+};

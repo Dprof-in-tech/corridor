@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePollar } from '@pollar/react';
 import { Shell, card, input, label, primary } from '../../../components/Shell';
 import { weave, fmtNgn, fmtUsdc, STELLAR_USDC, NGN } from '../../../lib/weave';
-import { usdcForBob, type RampQuote } from '../../../lib/pollar-ramps';
+import { usdcForBob, bestQuote, startOffRamp, type RampQuote, type OffRampResult } from '../../../lib/pollar-ramps';
 
 // Nigeria → Bolivia as a REQUEST. The Bolivian says how many BOB they want;
 // we size the USDC (Pollar off-ramp quote) and the naira (Weave quote), mint a
@@ -24,7 +24,7 @@ export default function RequestNaira() {
   const [order, setOrder] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [offramp, setOfframp] = useState<any>(null);
+  const [offramp, setOfframp] = useState<OffRampResult | null>(null);
 
   // Quote both legs from the BOB amount.
   useEffect(() => {
@@ -80,7 +80,7 @@ export default function RequestNaira() {
           }
         }
       } catch { /* keep polling */ }
-      t = setTimeout(tick, 5000);
+      t = setTimeout(tick, 8000);
     };
     tick();
     return () => { stopped = true; clearTimeout(t); };
@@ -92,17 +92,10 @@ export default function RequestNaira() {
     try {
       setBusy(true);
       // Fresh quote for what actually arrived (Pollar re-quotes the provider at execution anyway).
-      const fresh = await getClient().getRampsQuote({ country: 'BO', currency: 'BOB', direction: 'offramp', amount: cur.bob.amount });
-      const q = (fresh.quotes as any[]).find(x => x.recommended) ?? fresh.quotes[0];
-      if (!q) throw new Error('No Bolivian payout route available right now.');
+      const q = await bestQuote(getClient(), 'offramp', cur.bob.amount);
       const need = q.cryptoAmount != null ? Number(q.cryptoAmount) : cur.bob.amount / Number(q.rate);
       if (need > usdcLanded * 1.0001) throw new Error(`${fmtUsdc(usdcLanded)} arrived but the payout now needs ${fmtUsdc(need)}. Cash out manually from the ramp menu.`);
-      const bankField = (q.requiredFields ?? []).find((f: any) => f.bankType);
-      const out = await getClient().createOffRamp({
-        quoteId: q.quoteId, amount: cur.bob.amount, currency: 'BOB', country: 'BO', walletAddress: wallet.address,
-        ...(bankField && cur.bob.fields[bankField.key] ? { bankDetails: { type: bankField.bankType, value: cur.bob.fields[bankField.key] } } : {}),
-        fields: cur.bob.fields,
-      });
+      const out = await startOffRamp(getClient(), q, cur.bob.amount, wallet.address, cur.bob.fields);
       setOfframp(out);
       await fetch(`/api/requests/${cur.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: out.kycUrl ? 'funded' : 'cashed_out', offrampTxId: out.txId }) });
       void refreshWalletBalance();
@@ -120,7 +113,7 @@ export default function RequestNaira() {
           <div>
             <span className={label}>You want to receive</span>
             <div className="field flex items-center gap-3 px-4"><span className="text-ink-muted font-semibold">Bs</span><input inputMode="decimal" value={bobAmount} onChange={e => setBobAmount(e.target.value.replace(/[^\d.]/g, ''))} placeholder="200" autoFocus className="flex-1 py-3.5 text-[24px] font-semibold outline-none bg-transparent" /><span className="text-[13px] font-semibold text-ink-muted">BOB</span></div>
-            <div className="mt-2 text-[13px] text-ink-muted min-h-5">{quote ? <>≈ {fmtUsdc(quote.usdc)} via {quote.quote.provider} · payer sends <b className="text-ink">{fmtNgn(ngn)}</b></> : ''}</div>
+            <div className="mt-2 text-[13px] text-ink-muted min-h-5">{quote ? <>≈ {fmtUsdc(quote.usdc)} via {quote.quote.provider}{quote.quote.mocked ? ' · mocked' : ''} · payer sends <b className="text-ink">{fmtNgn(ngn)}</b></> : ''}</div>
           </div>
           {required.length > 0 && (
             <div className="reveal space-y-3">
@@ -143,7 +136,12 @@ export default function RequestNaira() {
             {[['They pay', fmtNgn(req.ngnAmount)], ['You receive', `Bs ${req.bob.amount.toFixed(2)}`], ['Via', `${req.bob.provider} · ${req.bob.rail}`], ['Status', order?.status ? `${req.status} · order ${order.status}` : req.status]].map(([k, v]) => <div key={k} className="flex justify-between py-2"><dt className="text-ink-muted">{k}</dt><dd className="font-semibold">{v}</dd></div>)}
           </dl>
           {offramp?.kycUrl && <p className="text-[13px]">Pollar needs a quick identity check before paying out: <a className="text-forest underline" href={offramp.kycUrl} target="_blank" rel="noreferrer">complete KYC</a>. USDC stays in your wallet meanwhile.</p>}
-          {offramp && !offramp.kycUrl && <p className="text-[13px] text-forest-deep">Payout submitted ({offramp.provider}, {offramp.status}). Track it under History.</p>}
+          {offramp && !offramp.kycUrl && !offramp.mocked && <p className="text-[13px] text-forest-deep">Payout submitted ({offramp.provider}, {offramp.status}). Track it under History.</p>}
+          {offramp?.mocked && (
+            <div className="rounded-xl bg-tan-mist text-tan-deep text-[12.5px] px-3 py-2">
+              <b>Mocked BOB payout (testnet).</b> Bs {offramp.receipt?.bob.toFixed(2)} → {offramp.receipt?.bank} ····{(offramp.receipt?.account ?? '').slice(-4)} ({offramp.receipt?.holder}). On mainnet Pollar's Stereum ramp pays this out via ACH; the USDC stays in your testnet wallet.
+            </div>
+          )}
           {error && <p className="text-[13px] text-terracotta bg-terracotta-soft rounded-xl px-3 py-2">{error}</p>}
           {req.status !== 'cashed_out' && <div className="flex items-center gap-2 text-[13px] text-ink-muted"><span className="w-3.5 h-3.5 rounded-full border-2 border-hair border-t-forest animate-spin" />{req.orderId ? 'Payer has started — waiting for the naira to clear…' : 'Waiting for the payer to open the link…'}</div>}
         </div>
