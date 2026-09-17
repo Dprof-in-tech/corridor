@@ -2,9 +2,10 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-// First-run tour. Not a slideshow: it spotlights the real dashboard and the
-// send steps only advance when the person actually does the thing (picks a
-// recipient, fills the bank, chooses a source, types an amount). Targets are
+// First-run tour. Not a slideshow: it spotlights the real dashboard and walks
+// a brand-new user through their first top-up — the steps only advance when
+// the person actually does the thing (clicks Add money, fills in their bank,
+// types an amount) and end on a ready button. Targets are
 // `data-tour="<key>"` elements on the page; the page feeds the tour its state.
 //
 // Replayable from the "?" in the header (Chrome dispatches `corridor:tour`).
@@ -12,49 +13,41 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 export const TOUR_KEY = 'corridor.tour';           // 'done' once finished/skipped
 export const TOUR_EVENT = 'corridor:tour';
 
-export interface TourState { to: boolean; details: boolean; from: boolean; amount: boolean; ready: boolean; testnet: boolean; balance: number | null }
+export interface TourState { add: boolean; payer: boolean; amount: boolean; ready: boolean; testnet: boolean; balance: number | null }
 
 interface Step {
   target?: string;                       // data-tour key; none = centred card
   eyebrow: string; title: React.ReactNode; body: React.ReactNode;
   advanceWhen?: (s: TourState) => boolean;   // auto-advance once satisfied
   waitLabel?: string;                    // shown instead of "Next" while waiting
-  action?: { label: string; run: () => Promise<void>; show: (s: TourState) => boolean };
   extraBottom?: number;                  // room under the target for popovers (bank typeahead)
 }
 
 const INK = '#2F4A3B', ACCENT = '#4F7A5C', CREAM = '#F3EDE0', CARD = '#FBF8F2';
 const em = (t: string) => <span style={{ color: ACCENT, fontStyle: 'italic' }}>{t}</span>;
 
-export function Tour({ open, state, onClose, onFaucet }: { open: boolean; state: TourState; onClose: () => void; onFaucet: () => Promise<void> }) {
+export function Tour({ open, state, onClose }: { open: boolean; state: TourState; onClose: () => void }) {
   const steps: Step[] = [
     { eyebrow: 'Welcome', title: <>A wallet, <em style={{ color: ACCENT }}>done.</em></>,
-      body: <>Signing in just created a Stellar wallet for you — no seed phrase, and Pollar pays the network fees. This takes about a minute and ends with you sending money. {state.testnet ? 'Everything here is test money.' : ''}</> },
+      body: <>Signing in just created a Stellar wallet for you — no seed phrase, and Pollar pays the network fees. This takes about a minute and ends with money in it. {state.testnet ? 'Everything here is test money.' : ''}</> },
     { target: 'balance', eyebrow: 'Your money', title: <>What you {em('have')}.</>,
-      body: <>USDC on Stellar, shown in dollars with what it is worth in naira and bolivianos right now.</>,
-      action: { label: 'Drop $5 of test money in', run: onFaucet, show: (s) => s.testnet && (s.balance ?? 0) < 5 } },
-    { target: 'links', eyebrow: 'Three shortcuts', title: <>Top up, get paid, {em('cash out')}.</>,
-      body: <><b style={{ fontWeight: 500 }}>Add money</b> gives you Nigerian bank details to transfer to. <b style={{ fontWeight: 500 }}>Get paid</b> claims an @handle friends can pay. <b style={{ fontWeight: 500 }}>Withdraw</b> sends your balance to your own bank.</> },
-    { target: 'to', eyebrow: 'Sending, step 1', title: <>Sending is {em('one sentence')}.</>,
-      body: <>Who, paid with what, how much. Start it now — pick <b style={{ fontWeight: 500 }}>a bank in Nigeria</b>.</>,
-      advanceWhen: (s) => s.to, waitLabel: 'Pick a recipient' },
-    { target: 'details', eyebrow: 'Sending, step 2', title: <>Who {em('exactly')}.</>,
-      body: <>Type the bank, then the account number. We look up the account name before anything moves.</>,
-      advanceWhen: (s) => s.details, waitLabel: 'Fill in the recipient', extraBottom: 280 },
-    { target: 'from', eyebrow: 'Sending, step 3', title: <>Paid {em('with')}.</>,
-      body: <>Your balance, a naira bank transfer, or a Bolivian bank QR. The one that would just be a local transfer is greyed out. Pick <b style={{ fontWeight: 500 }}>my balance</b>.</>,
-      advanceWhen: (s) => s.from, waitLabel: 'Choose how to pay' },
-    { target: 'amount', eyebrow: 'Sending, step 4', title: <>How {em('much')}.</>,
-      body: <>Type an amount. The line under it is a live quote with fees included — what actually arrives.</>,
-      advanceWhen: (s) => s.amount, waitLabel: 'Type an amount' },
-    { target: 'cta', eyebrow: 'That’s it', title: <>Send when {em('ready')}.</>,
-      body: <>{state.testnet ? 'Test money — nothing real moves. ' : ''}You will watch each hop tick off, and the result links to the Stellar transaction. Replay this tour any time from the <b style={{ fontWeight: 500 }}>?</b> in the header.</> },
+      body: <>USDC on Stellar, shown in dollars with what it is worth in naira and bolivianos right now. {(state.balance ?? 0) > 0 ? 'Yours already has a little in it.' : 'Empty for now — let’s fix that.'}</> },
+    { target: 'links', eyebrow: 'First top-up', title: <>Start with {em('Add money')}.</>,
+      body: <>Add money gives you Nigerian bank details to transfer to; the naira lands here as USDC. Click <b style={{ fontWeight: 500 }}>Add money</b> to begin.</>,
+      advanceWhen: (s) => s.add, waitLabel: 'Click Add money' },
+    { target: 'from', eyebrow: 'Top-up, step 1', title: <>Which bank you {em('pay from')}.</>,
+      body: <>Type your bank, then your account number. We only use this if something ever has to be refunded to you.</>,
+      advanceWhen: (s) => s.add && s.payer, waitLabel: 'Fill in your bank', extraBottom: 280 },
+    { target: 'amount', eyebrow: 'Top-up, step 2', title: <>How {em('much')}.</>,
+      body: <>Type an amount in naira. The line under it is a live quote with fees included — the USDC you will get.</>,
+      advanceWhen: (s) => s.add && s.amount, waitLabel: 'Type an amount' },
+    { target: 'cta', eyebrow: 'That’s it', title: <>Add when {em('ready')}.</>,
+      body: <>You get account details to transfer to{state.testnet ? ' — on testnet the transfer is simulated as received' : ''}, and the balance updates when it lands. Sending works the same way: who, paid with what, how much. Replay this from the <b style={{ fontWeight: 500 }}>?</b> in the header.</> },
   ];
 
   const [i, setI] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [radius, setRadius] = useState(0);   // the target's own corner radius, so the cutout follows its shape
-  const [busy, setBusy] = useState(false);
   const step = steps[i];
   const last = i === steps.length - 1;
 
@@ -133,15 +126,12 @@ export function Tour({ open, state, onClose, onFaucet }: { open: boolean; state:
         <div style={{ font: '400 32px/1.1 var(--font-display)', color: INK, letterSpacing: '-0.01em' }}>{step.title}</div>
         <div style={{ font: '14.5px/1.55 var(--font-body)', color: '#5E6058' }}>{step.body}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 6, flexWrap: 'wrap' }}>
-          {step.action && step.action.show(state) && (
-            <button className="cta" disabled={busy} onClick={async () => { setBusy(true); try { await step.action!.run(); } finally { setBusy(false); } }} style={{ height: 44, padding: '0 20px', fontSize: 14 }}>{busy ? 'Sending…' : step.action.label}</button>
-          )}
           {step.advanceWhen && !satisfied ? (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, font: 'italic 18px var(--font-display)', color: ACCENT }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: ACCENT, animation: 'tour-pulse 1.4s ease-in-out infinite' }} />{step.waitLabel}
             </span>
           ) : (
-            <button className={step.action && step.action.show(state) ? undefined : 'cta'} onClick={() => last ? onClose() : setI(i + 1)} style={step.action && step.action.show(state) ? { border: 0, background: 'transparent', font: '14px var(--font-body)', color: INK, cursor: 'pointer', padding: 0, textDecoration: 'underline' } : { height: 44, padding: '0 22px', fontSize: 14 }}>{last ? 'Done' : i === 0 ? 'Show me' : 'Next'}</button>
+            <button className="cta" onClick={() => last ? onClose() : setI(i + 1)} style={{ height: 44, padding: '0 22px', fontSize: 14 }}>{last ? 'Done' : i === 0 ? 'Show me' : 'Next'}</button>
           )}
           {!last && <button onClick={onClose} style={{ border: 0, background: 'transparent', font: '13px var(--font-body)', color: '#8A8A80', cursor: 'pointer', padding: 0, marginLeft: 'auto' }}>Skip tour</button>}
         </div>

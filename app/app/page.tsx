@@ -60,14 +60,6 @@ export default function Dashboard() {
     window.addEventListener(TOUR_EVENT, replay); return () => window.removeEventListener(TOUR_EVENT, replay);
   }, [wallet]);
   const closeTour = () => { setTour(false); markTourDone(); };
-  // Testnet only: the sandbox faucet drops a little USDC into a brand-new wallet.
-  const faucet = async () => {
-    if (!wallet) return;
-    const r = await weave('sandbox/stellar-faucet', { body: { to: wallet.address, amount: 5 } });
-    if (!r.ok) { setError(r.error || 'The faucet is unavailable right now'); return; }
-    await refreshWalletBalance();
-  };
-
   // ── rates (live where available; the design's numbers are illustrative) ──
   const [ngnPerUsd, setNgnPerUsd] = useState(1400);
   const [bobPerUsd, setBobPerUsd] = useState(6.96);
@@ -401,7 +393,7 @@ export default function Dashboard() {
           </section>
         )}
       </div>
-      <Tour open={tour} onClose={closeTour} onFaucet={faucet} state={{ to: !!to, details: !!to && detailsOk, from: !!from && payerOk, amount: a > 0 && estReady, ready: step4, testnet: IS_TESTNET, balance: bal }} />
+      <Tour open={tour} onClose={closeTour} state={{ add: self && from === 'ngn', payer: payerOk, amount: a > 0 && estReady, ready: step4, testnet: IS_TESTNET, balance: bal }} />
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} @media (max-width: 720px) { .balance-num { font-size: 64px !important; } }`}</style>
     </Chrome>
   );
