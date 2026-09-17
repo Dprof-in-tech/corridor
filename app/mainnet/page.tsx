@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Fragment, useEffect, useState } from 'react';
 import { Coins, DashboardArches, Logo } from '../../components/Brand';
 import { PROOFS, STELLAR_EXPERT_TX, BASESCAN_TX, HORIZON_TX, type Proof } from '../../lib/proofs';
+import { NEXT_AFRICA, NEXT_CURRENCIES } from '../../lib/countries';
 
 // Public page: what the corridor has already done on mainnet (with the
 // on-chain records fetched live from Horizon) and a walkthrough of the
@@ -65,7 +66,8 @@ const OTHER: Array<{ leg: string; via: string; status: 'live' | 'switch' | 'paus
   { leg: 'Naira → your wallet (Add money)', via: 'Weave → NEAR Intents', status: 'paused', note: 'NEAR\'s Stellar pairs are paused ("quoting not available"). On testnet a labelled simulator stands in; on mainnet this turns on the day NEAR resumes.' },
   { leg: 'Bolivianos in and out', via: 'Pollar · Stereum (QR in, ACH out)', status: 'switch', note: 'Pollar enables the BOB ramp per mainnet app. Mocked on testnet at the Pollar team\'s request; the calls are the same SDK calls.' },
   { leg: 'Friend → friend', via: 'Stellar payment, sponsored', status: 'live', note: 'USDC to an @handle or G-address. No fee.' },
-  { leg: 'Any Stellar wallet (SEP-24)', via: 'Weave anchor · stellar.toml', status: 'switch', note: 'Weave is a SEP-10/24 anchor for NGN. Needs a stable HTTPS home domain so Pollar can list it.' },
+  { leg: 'Any Stellar wallet (SEP-24)', via: 'Weave anchor · stellar.toml', status: 'switch', note: 'Weave is a SEP-10/24 anchor for NGN, live at api.paywithweave.com. Pollar lists it by home domain.' },
+  { leg: `${NEXT_AFRICA.map(c => c.name).join(' · ')} (${NEXT_CURRENCIES})`, via: 'Weave → Paycrest', status: 'switch', note: 'The same payout rail that delivers naira already carries these currencies. Enabling a country is a switch on Weave\'s side, not a new integration — and Corridor is country-agnostic (one row in lib/countries.ts).' },
 ];
 const StatusPill = ({ s }: { s: 'live' | 'switch' | 'paused' }) => {
   const m = { live: ['Live', ACCENT], switch: ['Waiting on a switch', INK], paused: ['Provider paused', '#A8321E'] }[s];

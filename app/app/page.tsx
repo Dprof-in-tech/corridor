@@ -9,6 +9,7 @@ import { useNetwork, explorerTx } from '../../lib/network';
 import { bestQuote, bobFromUsdcOfframp, usdcFromBobOnramp, type RampQuote } from '../../lib/pollar-ramps';
 import { runFlow, type To, type From, type FlowEvent, type FlowResult } from '../../lib/flows';
 import { Tour, TOUR_EVENT, tourPending, markTourDone } from '../../components/Tour';
+import { NEXT_AFRICA } from '../../lib/countries';
 
 // Dashboard (design handoff "Dashboard v3"): balance, three secondary actions,
 // and a conversational Send flow that reveals one sentence at a time:
@@ -299,6 +300,15 @@ export default function Dashboard() {
                 <Pill on={to === 'ng'} dot="#4F7A5C" onClick={() => pickTo('ng')}>a bank in Nigeria</Pill>
                 <Pill on={to === 'bo'} dot="#B8C7BA" onClick={() => pickTo('bo')}>a bank in Bolivia</Pill>
                 <Pill on={to === 'fr'} dot="#2F4A3B" onClick={() => pickTo('fr')}>a friend on Corridor</Pill>
+              </div>
+              {/* The rest of the African side: on Weave's rail already, waiting on a switch. */}
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                {NEXT_AFRICA.map(c => (
+                  <Pill key={c.code} on={false} dot={c.dot} disabled title={`${c.currency} payouts run on the same Weave rail as naira — switching on soon.`} onClick={() => {}}>
+                    a bank in {c.name}<span style={{ font: '11px var(--font-mono)', letterSpacing: '.06em', color: '#8A8A80', marginLeft: 4 }}>SOON</span>
+                  </Pill>
+                ))}
+                <span style={{ font: '13px var(--font-body)', color: '#8A8A80' }}>Same rail as naira, not switched on yet.</span>
               </div>
             </div>
 
