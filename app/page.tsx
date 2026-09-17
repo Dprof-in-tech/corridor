@@ -26,7 +26,9 @@ export default function Landing() {
   // bounced back to our origin. The session lands in shared localStorage, so
   // any of our tabs that sees it appear can move on to /app.
   useEffect(() => {
-    const onStorage = (e: StorageEvent) => { if (e.key && /pollar/i.test(e.key) && e.newValue) window.location.replace('/app'); };
+    const preview = new URLSearchParams(window.location.search).has('preview');
+    // Only the session key counts (the SDK also writes nonces), and never in preview.
+    const onStorage = (e: StorageEvent) => { if (!preview && e.key && /pollar:.*:session$/i.test(e.key) && e.newValue) window.location.replace('/app'); };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
   }, []);
@@ -61,19 +63,31 @@ export default function Landing() {
       <style>{`
         .board { position: relative; width: 100%; min-height: 100vh; background: #F3EDE0; overflow: hidden; }
         .board .coins { position: absolute; inset: 0; pointer-events: none; }
-        .board .content { position: relative; min-height: 100vh; padding: clamp(24px, 4.5vw, 56px) clamp(24px, 5vw, 64px) clamp(56px, 8vh, 80px); display: flex; flex-direction: column; box-sizing: border-box; }
-        /* Desktop (card floats right): the headline sizes to the space left of the 360px card. */
-        .board .headline { font: 400 clamp(52px, calc((100vw - 600px) / 6.6), 104px)/0.95 var(--font-display); letter-spacing: -0.025em; color: #2F4A3B; margin: 20px 0 0; max-width: calc(100vw - 600px); }
-        /* Bullets: pinned to the bottom on landscape screens (the design board); on
-           portrait screens they follow the headline so the page has no dead middle. */
-        /* Bullets: bottom-anchored, right of the arches, exactly as the design board. */
-        .board .bullets { margin-top: auto; padding-top: 56px; margin-left: min(600px, calc(100vw - 484px)); max-width: 420px; display: flex; flex-direction: column; gap: 14px; position: relative; z-index: 1; }
-        .board .card-slot { position: absolute; right: clamp(24px, 5vw, 64px); top: clamp(240px, 30vh, 320px); z-index: 2; }
+        .board .content { position: relative; min-height: 100vh; padding: clamp(24px, 4.5vw, 56px) clamp(20px, 5vw, 64px) clamp(56px, 8vh, 80px); display: flex; flex-direction: column; box-sizing: border-box; }
+        /* Headline: never wraps. Sized from (a) the width beside the 360px card —
+           the longest line "Bolivianos in La Paz." is ~7.1em — and (b) the height
+           above the arches (their top sits at 46.7% of the viewport); capped at the
+           design's 104px. */
+        .board .headline { font: 400 clamp(44px, min(calc((100vw - 560px) / 7.1), calc((53.3vh - 210px) / 2.85)), 104px)/0.95 var(--font-display); letter-spacing: -0.025em; color: #2F4A3B; margin: 20px 0 0; white-space: nowrap; }
+        .board .bullets { display: flex; flex-direction: column; gap: 14px; position: relative; z-index: 1; }
+
+        /* Desktop (landscape): card floats right; the bullets sit in the right column
+           directly under it. */
+        .board .card-slot { position: absolute; right: clamp(24px, 5vw, 64px); top: clamp(240px, 30vh, 320px); z-index: 2; display: flex; flex-direction: column; gap: 28px; width: 360px; }
+        .board .content { min-height: max(100vh, 900px); }
+
+        /* Portrait screens (tall monitors): the design board's placement — bullets
+           bottom-anchored beside the arches, at left 600. */
+        @media (max-aspect-ratio: 1/1) and (min-width: 901px) {
+          .board .bullets { position: absolute; right: calc(100vw - 600px - 420px - clamp(24px, 5vw, 64px)); bottom: calc(clamp(56px, 8vh, 80px) - clamp(240px, 30vh, 320px)); width: 420px; }
+          .board .content { min-height: 100vh; }
+        }
+        /* Layout C — narrow: everything stacks, shapes fade back. */
         @media (max-width: 900px) {
-          .board .headline { font-size: clamp(44px, 9vw, 92px); max-width: none; }
-          .board .card-slot { position: relative; right: auto; top: auto; margin-top: 40px; }
-          .board .bullets { margin-left: 0; padding-top: 40px; }
+          .board .headline { font-size: clamp(40px, 8.5vw, 92px); white-space: normal; }
+          .board .card-slot { position: relative; right: auto; top: auto; margin-top: 40px; width: auto; }
           .board .shapes { opacity: .55; }
+          .board .content { min-height: 100vh; }
         }
         @media (max-width: 560px) {
           .board .shapes { display: none; }
@@ -94,16 +108,18 @@ export default function Landing() {
             </div>
             <h1 className="headline">Naira in Lagos.<br />Bolivianos in La Paz.<br /><span style={{ color: '#4F7A5C', fontStyle: 'italic' }}>Minutes, not days.</span></h1>
           </div>
-          <div className="bullets">
-            {[
-              ['Send to Nigeria', 'USDC leaves your wallet, naira lands in any Nigerian bank in ~3 minutes.'],
-              ['Add naira', 'pay by bank transfer, USDC arrives in your wallet.'],
-              ['Cash out in Bolivia', "BOB to your bank via Pollar's ramp."],
-            ].map(([lead, rest]) => (
-              <div key={lead} style={{ font: '14px/1.5 var(--font-body)', color: '#2F4A3B' }}><strong style={{ fontWeight: 500 }}>{lead}</strong> — {rest}</div>
-            ))}
+          <div className="card-slot">
+            {card}
+            <div className="bullets">
+              {[
+                ['Send to Nigeria', 'USDC leaves your wallet, naira lands in any Nigerian bank in ~3 minutes.'],
+                ['Add naira', 'pay by bank transfer, USDC arrives in your wallet.'],
+                ['Cash out in Bolivia', "BOB to your bank via Pollar's ramp."],
+              ].map(([lead, rest]) => (
+                <div key={lead} style={{ font: '14px/1.5 var(--font-body)', color: '#2F4A3B' }}><strong style={{ fontWeight: 500 }}>{lead}</strong> — {rest}</div>
+              ))}
+            </div>
           </div>
-          <div className="card-slot">{card}</div>
         </div>
     </div>
   );

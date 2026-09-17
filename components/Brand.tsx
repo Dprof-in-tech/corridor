@@ -41,15 +41,18 @@ const DASHBOARD: CoinSpec[] = [
 
 /**
  * Board scale for the landing. The design is a 1200×900 board; on wider
- * screens everything scales up uniformly (kx), and on TALLER screens only the
- * heights stretch (ky) — arches grow with the viewport while keeping their
- * width, and the coin paths are stretched the same way so the coins still
- * start inside the arches exactly as drawn.
+ * screens widths scale up (kx); heights follow the viewport height (ky) —
+ * arches grow on tall screens and shrink on short ones, and the coin paths
+ * are stretched the same way so the coins still start inside the arches
+ * exactly as drawn.
  */
 export function useBoardScale(): { kx: number; ky: number } {
   const [k, setK] = useState({ kx: 1, ky: 1 });
   useEffect(() => {
-    const calc = () => { const kx = Math.max(1, window.innerWidth / 1200); setK({ kx, ky: Math.max(kx, window.innerHeight / 900) }); };
+    // Widths follow the viewport width (never below the design), heights follow
+    // the viewport height in both directions — a short landscape window gets
+    // shorter arches, a tall portrait one gets taller arches.
+    const calc = () => setK({ kx: Math.max(1, window.innerWidth / 1200), ky: Math.max(0.6, window.innerHeight / 900) });
     calc(); window.addEventListener('resize', calc);
     return () => window.removeEventListener('resize', calc);
   }, []);
