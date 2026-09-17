@@ -8,6 +8,7 @@ import { weave, bankMatches, STELLAR_USDC, NGN, shortG, type Bank } from '../../
 import { useNetwork, explorerTx } from '../../lib/network';
 import { bestQuote, bobFromUsdcOfframp, usdcFromBobOnramp, type RampQuote } from '../../lib/pollar-ramps';
 import { runFlow, type To, type From, type FlowEvent, type FlowResult } from '../../lib/flows';
+import { Tour, TOUR_EVENT, tourPending, markTourDone } from '../../components/Tour';
 
 // Dashboard (design handoff "Dashboard v3"): balance, three secondary actions,
 // and a conversational Send flow that reveals one sentence at a time:
@@ -50,6 +51,22 @@ export default function Dashboard() {
 
   // Balance may still be idle when we mount (login finished in another tab).
   useEffect(() => { if (wallet && walletBalance.step === 'idle') void refreshWalletBalance(); }, [wallet, walletBalance.step, refreshWalletBalance]);
+
+  // ── first-run tour ─────────────────────────────────────────────────────
+  const [tour, setTour] = useState(false);
+  useEffect(() => {
+    if (wallet && tourPending()) setTour(true);
+    const replay = () => setTour(true);
+    window.addEventListener(TOUR_EVENT, replay); return () => window.removeEventListener(TOUR_EVENT, replay);
+  }, [wallet]);
+  const closeTour = () => { setTour(false); markTourDone(); };
+  // Testnet only: the sandbox faucet drops a little USDC into a brand-new wallet.
+  const faucet = async () => {
+    if (!wallet) return;
+    const r = await weave('sandbox/stellar-faucet', { body: { to: wallet.address, amount: 5 } });
+    if (!r.ok) { setError(r.error || 'The faucet is unavailable right now'); return; }
+    await refreshWalletBalance();
+  };
 
   // ── rates (live where available; the design's numbers are illustrative) ──
   const [ngnPerUsd, setNgnPerUsd] = useState(1400);
@@ -252,6 +269,7 @@ export default function Dashboard() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 72 }}>
         {/* Balance */}
         <section>
+          <div data-tour="balance" style={{ display: 'inline-block' }}>
           <div className="mono-eyebrow">You have</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 20, marginTop: 8, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
@@ -260,7 +278,8 @@ export default function Dashboard() {
             </div>
             {bal != null && <span style={{ font: 'italic 26px var(--font-display)', color: '#8A8A80' }}>about {fmt(bal * ngnPerUsd, 'NGN')} · {fmt(bal * bobPerUsd, 'BOB')}</span>}
           </div>
-          <div style={{ display: 'flex', gap: 28, marginTop: 22, flexWrap: 'wrap', alignItems: 'baseline' }}>
+          </div>
+          <div data-tour="links" style={{ display: 'flex', gap: 28, marginTop: 22, flexWrap: 'wrap', alignItems: 'baseline', width: 'fit-content' }}>
             <button className="link-serif" onClick={startAdd}>Add money</button>
             {handle ? (
               <Link href="/app/request-naira" className="link-serif" style={{ textDecoration: 'none' }} title="Request naira from anyone in Nigeria — paid out to you in BOB">Get paid at @{handle}</Link>
@@ -282,7 +301,7 @@ export default function Dashboard() {
         {/* Send flow */}
         {!result && (
           <section style={{ display: 'flex', flexDirection: 'column', gap: 36, maxWidth: 820 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div data-tour="to" style={{ display: 'flex', flexDirection: 'column', gap: 18, width: 'fit-content' }}>
               <div className="prose-step">I want to send money to</div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <Pill on={to === 'ng'} dot="#4F7A5C" onClick={() => pickTo('ng')}>a bank in Nigeria</Pill>
@@ -291,10 +310,10 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {to && detailsRow}
+            {to && <div data-tour="details" style={{ width: 'fit-content' }}>{detailsRow}</div>}
 
             {step2 && (
-              <div className="rise" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div data-tour="from" className="rise" style={{ display: 'flex', flexDirection: 'column', gap: 18, width: 'fit-content' }}>
                 <div className="prose-step">paying with</div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <Pill on={from === 'bal'} onClick={() => pickFrom('bal')}>my balance</Pill>
@@ -315,7 +334,7 @@ export default function Dashboard() {
             )}
 
             {step3 && (
-              <div className="rise" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div data-tour="amount" className="rise" style={{ display: 'flex', flexDirection: 'column', gap: 18, width: 'fit-content' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, flexWrap: 'wrap' }}>
                   <span className="prose-step">and the amount is</span>
                   <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, borderBottom: '1px solid #2F4A3B' }}>
@@ -328,7 +347,7 @@ export default function Dashboard() {
             )}
 
             {(step4 || over) && !running && (
-              <div className="rise" style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+              <div data-tour="cta" className="rise" style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap', width: 'fit-content' }}>
                 {over ? <button className="cta" onClick={startAdd}>Add money instead</button> : <button className="cta" onClick={send}>{ctaLabel}</button>}
                 <button onClick={reset} style={{ border: 0, background: 'transparent', font: '14px var(--font-body)', color: '#8A8A80', cursor: 'pointer', padding: 0 }}>Start over</button>
               </div>
@@ -382,6 +401,7 @@ export default function Dashboard() {
           </section>
         )}
       </div>
+      <Tour open={tour} onClose={closeTour} onFaucet={faucet} state={{ to: !!to, details: !!to && detailsOk, from: !!from && payerOk, amount: a > 0 && estReady, ready: step4, testnet: IS_TESTNET, balance: bal }} />
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} @media (max-width: 720px) { .balance-num { font-size: 64px !important; } }`}</style>
     </Chrome>
   );
