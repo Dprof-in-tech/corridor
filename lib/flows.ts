@@ -135,7 +135,7 @@ export async function runFlow(input: FlowInput, client: PollarClient, signer: Po
       const { bobPerUsd } = await rates();
       const bob = Math.floor(amount * bobPerUsd * 100) / 100;
       const out = await offrampBob(bob, input.bo);
-      return { headline: out.mocked ? 'Bolivianos on the way (mocked)' : 'Bolivianos on the way', detail: `Bs ${bob.toFixed(2)} → ${input.bo.fields.bank ?? 'your bank'} ····${(input.bo.fields.account ?? '').slice(-4)}`, mocked: !!out.mocked };
+      return { headline: 'Bolivianos on the way', detail: `Bs ${bob.toFixed(2)} → ${input.bo.fields.bank ?? 'your bank'} ····${(input.bo.fields.account ?? '').slice(-4)}`, mocked: !!out.mocked };
     }
     if (from === 'ngn') {
       const before = await usdcBalance();
@@ -144,7 +144,7 @@ export async function runFlow(input: FlowInput, client: PollarClient, signer: Po
       const { usdc, quote } = await usdcForBob(client, 1); // probe for the rate
       const bob = Math.floor((landed / usdc) * 100) / 100 * (quote.mocked ? 1 : 1);
       const out = await offrampBob(bob, input.bo);
-      return { headline: out.mocked ? 'Bolivianos on the way (mocked)' : 'Bolivianos on the way', detail: `₦${amount.toLocaleString()} → Bs ${bob.toFixed(2)} to your bank`, mocked: !!out.mocked };
+      return { headline: 'Bolivianos on the way', detail: `₦${amount.toLocaleString()} → Bs ${bob.toFixed(2)} to your bank`, mocked: !!out.mocked };
     }
   }
   if (to === 'fr') {

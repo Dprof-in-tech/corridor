@@ -99,8 +99,10 @@ export function LandingShapes({ scale }: { scale?: { kx: number; ky: number } })
 export function DashboardArches() {
   return (
     <>
-      <div aria-hidden style={{ position: 'fixed', right: 160, bottom: -40, width: 200, height: 300, background: ACCENT, borderRadius: '100px 100px 0 0', pointerEvents: 'none', zIndex: 0 }} />
-      <div aria-hidden style={{ position: 'fixed', right: 0, bottom: -40, width: 200, height: 200, background: SAGE, borderRadius: '100px 100px 0 0', pointerEvents: 'none', zIndex: 0 }} />
+      <div aria-hidden className="dash-arch" style={{ position: 'fixed', right: 160, bottom: -40, width: 200, height: 300, background: ACCENT, borderRadius: '100px 100px 0 0', pointerEvents: 'none', zIndex: 0 }} />
+      <div aria-hidden className="dash-arch" style={{ position: 'fixed', right: 0, bottom: -40, width: 200, height: 200, background: SAGE, borderRadius: '100px 100px 0 0', pointerEvents: 'none', zIndex: 0 }} />
+      {/* On narrow screens the arches would sit on top of the content column. */}
+      <style>{`@media (max-width: 900px) { .dash-arch { display: none; } }`}</style>
     </>
   );
 }

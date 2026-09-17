@@ -1,66 +1,19 @@
 'use client';
 
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { usePollar } from '@pollar/react';
-import { shortG, IS_TESTNET } from '../lib/weave';
+import { Chrome } from './Chrome';
 
-// Authenticated frame: header with the Pollar wallet chip, cream canvas.
+// Sub-page frame: the dashboard Chrome plus a serif title. The class exports
+// keep the remaining form pages on the handoff palette.
 export function Shell({ children, title, back }: { children: React.ReactNode; title?: string; back?: string }) {
-  const { isAuthenticated, wallet, logout, walletBalance, refreshWalletBalance, getClient } = usePollar();
-  const router = useRouter();
-
-  // Don't bounce to the landing page until the SDK has had a chance to restore
-  // a persisted session — on a hard load isAuthenticated is false for a tick.
-  const [ready, setReady] = useState(false);
-  useEffect(() => { let live = true; getClient().ready().then(() => live && setReady(true)).catch(() => live && setReady(true)); return () => { live = false; }; }, [getClient]);
-  useEffect(() => { if (ready && !isAuthenticated) router.replace('/'); }, [ready, isAuthenticated, router]);
-  useEffect(() => { if (isAuthenticated && walletBalance.step === 'idle') void refreshWalletBalance(); }, [isAuthenticated, walletBalance.step, refreshWalletBalance]);
-
-  const usdc = walletBalance.step === 'loaded' ? walletBalance.data.balances.find(b => b.code === 'USDC')?.balance : null;
-
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="sticky top-0 z-30 border-b border-hair-soft bg-cream/85 backdrop-blur-md">
-        <div className="mx-auto max-w-2xl px-5 py-3 flex items-center gap-3">
-          <Link href="/app" className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-full bg-forest text-cream flex items-center justify-center font-display font-bold text-sm">W</span>
-            <span className="font-display font-semibold text-ink text-[17px] leading-none">Corridor</span>
-            <span className="hidden sm:inline-flex items-center self-center text-[11px] leading-none uppercase tracking-wider text-ink-faint ml-1 pt-[2px]">Weave × Pollar</span>
-          </Link>
-          <div className="ml-auto flex items-center gap-2">
-            {wallet && (
-              <div className="flex items-center gap-2 rounded-full border border-hair bg-cream-soft px-3 py-1.5 text-[12.5px]">
-                <button title={wallet.address} onClick={() => navigator.clipboard.writeText(wallet.address).catch(() => {})} className="font-mono text-ink-soft hover:text-ink" aria-label="Copy wallet address">{shortG(wallet.address)}</button>
-                <span className="text-ink-faint">·</span>
-                <span className="font-semibold text-forest-deep">{usdc != null ? `${Number(usdc).toLocaleString(undefined, { maximumFractionDigits: 2 })} USDC` : '…'}</span>
-              </div>
-            )}
-            <button onClick={() => logout()} className="text-[12.5px] text-ink-muted hover:text-ink px-2 py-1.5">Sign out</button>
-          </div>
-        </div>
-      </header>
-      {IS_TESTNET && (
-        <div className="bg-tan-mist border-b border-hair text-tan-deep text-[12px] text-center px-4 py-1.5">
-          <b>Testnet demo.</b> Pollar wallet + sponsored txs are real on Stellar testnet · Nigerian rails run in Weave sandbox · the bridge is a labelled simulator · BOB payouts are mocked (Pollar runs them on mainnet).
-        </div>
-      )}
-      <main className="mx-auto w-full max-w-2xl px-5 py-7 flex-1">
-        {(title || back) && (
-          <div className="mb-5 flex items-center gap-3">
-            {back && <Link href={back} className="text-ink-muted hover:text-ink text-sm">← Back</Link>}
-            {title && <h1 className="font-display text-[26px] font-semibold text-ink">{title}</h1>}
-          </div>
-        )}
-        {children}
-      </main>
-      <footer className="py-6 text-center text-[11.5px] text-ink-faint">Non-custodial · Stellar · Weave anchors Nigeria · Pollar ramps Bolivia</footer>
-    </div>
+    <Chrome back={back}>
+      {title && <h1 style={{ font: '400 44px/1.15 var(--font-display)', color: '#2F4A3B', margin: '16px 0 28px', letterSpacing: '-0.01em' }}>{title}</h1>}
+      <div style={{ maxWidth: 640 }}>{children}</div>
+    </Chrome>
   );
 }
 
-export const card = 'rounded-3xl border border-hair bg-white/85 backdrop-blur p-5 shadow-[0_20px_60px_-32px_rgba(0,0,0,0.25)]';
+export const card = 'rounded-3xl border border-hair bg-cream-soft p-6 shadow-[0_30px_60px_-30px_rgba(47,74,59,0.35)]';
 export const input = 'field w-full px-4 py-3 text-[15px] text-ink';
-export const label = 'block text-[11.5px] font-semibold uppercase tracking-wide text-ink-soft mb-2';
-export const primary = (on: boolean) => `w-full rounded-2xl py-3.5 text-[15px] font-semibold text-cream transition ${on ? 'bg-forest hover:bg-forest-deep' : 'bg-forest/40 cursor-not-allowed'}`;
+export const label = 'block text-[11px] font-mono uppercase tracking-[0.08em] text-ink-faint mb-2';
+export const primary = (on: boolean) => `w-full rounded-full py-3.5 text-[15px] text-cream transition ${on ? 'bg-ink hover:bg-forest' : 'bg-sage cursor-not-allowed'}`;
