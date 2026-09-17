@@ -62,7 +62,10 @@ export function Chrome({ children, back }: { children: React.ReactNode; back?: s
             <div className="mono-eyebrow">Mainnet</div>
             <h1 style={{ font: '400 clamp(48px, 8vw, 96px)/0.95 var(--font-display)', letterSpacing: '-0.025em', color: '#2F4A3B', margin: 0 }}>Coming <span style={{ color: '#4F7A5C', fontStyle: 'italic' }}>soon.</span></h1>
             <p style={{ font: '16px/1.6 var(--font-body)', color: '#5E6058', margin: 0, maxWidth: 520 }}>The live corridor — naira via Weave, the Stellar → Base hop via LI.FI / Circle CCTP, bolivianos via Pollar's Stereum ramp — is being switched on. Flip the switch back to keep using test mode.</p>
-            <div><button className="cta" onClick={() => setNetwork('testnet')}>Back to test mode</button></div>
+            <div style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+              <Link href="/mainnet" className="cta" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>See what is live on mainnet</Link>
+              <button onClick={() => setNetwork('testnet')} style={{ border: 0, background: 'transparent', font: '14px var(--font-body)', color: '#2F4A3B', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>Back to test mode</button>
+            </div>
           </section>
         ) : (
           <>

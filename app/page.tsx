@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePollar } from '@pollar/react';
@@ -120,6 +121,7 @@ export default function Landing() {
               ].map(([lead, rest]) => (
                 <div key={lead} style={{ font: '14px/1.5 var(--font-body)', color: '#2F4A3B' }}><strong style={{ fontWeight: 500 }}>{lead}</strong> — {rest}</div>
               ))}
+              <Link href="/mainnet" style={{ font: 'italic 16px var(--font-display)', color: '#4F7A5C', textDecoration: 'none', borderBottom: '1px solid #4F7A5C', width: 'fit-content', marginTop: 4 }}>Already live on mainnet — see the proof →</Link>
             </div>
           </div>
           <div className="card-slot">{card}</div>
