@@ -26,8 +26,8 @@ export function Shell({ children, title, back }: { children: React.ReactNode; ti
         <div className="mx-auto max-w-2xl px-5 py-3 flex items-center gap-3">
           <Link href="/app" className="flex items-center gap-2">
             <span className="w-8 h-8 rounded-full bg-forest text-cream flex items-center justify-center font-display font-bold text-sm">W</span>
-            <span className="font-display font-semibold text-ink text-[17px]">Corridor</span>
-            <span className="hidden sm:inline text-[11px] uppercase tracking-wider text-ink-faint ml-1">Weave × Pollar</span>
+            <span className="font-display font-semibold text-ink text-[17px] leading-none">Corridor</span>
+            <span className="hidden sm:inline-flex items-center self-center text-[11px] leading-none uppercase tracking-wider text-ink-faint ml-1 pt-[2px]">Weave × Pollar</span>
           </Link>
           <div className="ml-auto flex items-center gap-2">
             {wallet && (
