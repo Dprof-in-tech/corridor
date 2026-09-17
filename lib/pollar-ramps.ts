@@ -35,7 +35,19 @@ function mockQuote(direction: 'onramp' | 'offramp', amountFiat: number): RampQuo
   } as RampQuote;
 }
 
+// Rate probes (the 100-BOB quote used for conversions) are cached for a
+// minute: Pollar's testnet keys are capped at 1,000 requests a day, and the
+// dashboard re-quotes on every keystroke.
+const probeCache = new Map<string, { at: number; q: RampQuote }>();
 export async function bestQuote(client: PollarClient, direction: 'onramp' | 'offramp', amountFiat: number): Promise<RampQuote> {
+  const key = `${direction}:${amountFiat}`;
+  const hit = probeCache.get(key);
+  if (hit && Date.now() - hit.at < 60_000) return hit.q;
+  const q = await fetchQuote(client, direction, amountFiat);
+  probeCache.set(key, { at: Date.now(), q });
+  return q;
+}
+async function fetchQuote(client: PollarClient, direction: 'onramp' | 'offramp', amountFiat: number): Promise<RampQuote> {
   try {
     const { quotes } = await client.getRampsQuote({ ...BO, direction, amount: amountFiat });
     const q = (quotes as RampQuote[]).find(x => x.recommended) ?? (quotes as RampQuote[])[0];
@@ -43,15 +55,6 @@ export async function bestQuote(client: PollarClient, direction: 'onramp' | 'off
   } catch { /* fall through to the mock on testnet */ }
   if (isTestnet()) return mockQuote(direction, amountFiat);
   throw new Error('No Bolivian ramp is enabled for this Pollar app. Enable Stereum (BOB · QR in / ACH out) under Integrations → Ramps on a mainnet app — the Pollar team can switch it on.');
-}
-
-/** BOB the user must pay to end up with ~`usdc` in the wallet (on-ramp). */
-export async function bobForUsdc(client: PollarClient, usdc: number): Promise<{ bob: number; quote: RampQuote }> {
-  const probe = await bestQuote(client, 'onramp', 100);
-  const est = usdc * Number(probe.rate) * 1.01;
-  const bob = Math.max(Number(probe.minAmount ?? 0), Math.ceil(est * 100) / 100);
-  const quote = await bestQuote(client, 'onramp', bob);
-  return { bob, quote };
 }
 
 /** BOB that `usdc` pays out to a Bolivian bank (off-ramp), net of the provider fee. */

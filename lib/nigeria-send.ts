@@ -16,7 +16,7 @@ export async function createNigeriaSend(walletAddress: string, amountUsdc: numbe
     amount: amountUsdc, amountIn: 'source', refundAddress: walletAddress,
   } });
   if (!res.ok) throw new Error(res.error || 'Could not start the transfer');
-  return { order: res.data.order as any, nextAction: res.data.nextAction as any };
+  return { order: res.data.order as any, nextAction: res.data.nextAction as any, amountUsdc };
 }
 
 export interface PollarSigner {
@@ -28,7 +28,7 @@ export interface PollarSigner {
 
 /** Sign (via Pollar) and settle. Resolves with the final order. */
 export async function executeNigeriaSend(
-  created: { order: any; nextAction: any },
+  created: { order: any; nextAction: any; amountUsdc: number },
   signer: PollarSigner,
   onStage: (s: Stage | 'quote' | 'pay', hash?: string) => void,
   onOrder: (o: any) => void,
@@ -36,7 +36,12 @@ export async function executeNigeriaSend(
 ): Promise<{ order: any; hash: string | null }> {
   let hash: string | null = null;
   const na = created.nextAction;
+  // Never pay what the server says if it is not what the user asked for.
+  const asked = created.amountUsdc;
   if (na?.screen === 'collect_crypto' && na.depositAddress) {
+    const toPay = Number(na.amount);
+    if (!(toPay > 0) || Math.abs(toPay - asked) > 0.0000001 + asked * 0.001) throw new Error(`Refusing to pay: Weave asked for ${toPay} USDC but the order is for ${asked} USDC.`);
+    if (!/^G[A-Z2-7]{55}$/.test(String(na.depositAddress))) throw new Error('Refusing to pay: invalid deposit address.');
     // Deposit-address bridge (sandbox simulator today; NEAR Intents on mainnet
     // when quotable): ONE sponsored Stellar payment with the order's memo.
     onStage('pay');
@@ -46,7 +51,8 @@ export async function executeNigeriaSend(
     );
     if (out.status === 'error' || !out.hash) throw new Error(out.details || out.message || 'Your wallet rejected the payment');
     hash = out.hash; onStage('done', hash);
-  } else if (na?.screen === 'sign_stellar_tx') {
+  } else if (na?.screen === 'sign_stellar_tx' && na.stellarSigning?.fromAddress) {
+    if (na.stellarSigning.fromAddress !== created.order?.sourceInstrument?.walletAddress && created.order?.sourceInstrument?.walletAddress) throw new Error('Refusing to sign: the transaction is not from your wallet.');
     const { signAndSubmitTx } = signer;
     const sign = async (xdr: string) => {
       const out = await signAndSubmitTx(xdr);
@@ -54,6 +60,8 @@ export async function executeNigeriaSend(
       return out.hash;
     };
     hash = await runBridge(na.stellarSigning, sign, (s, d) => onStage(s, d), opts);
+  } else if (na) {
+    throw new Error(`Weave asked for a step this app does not handle (${na.screen ?? 'unknown'}). Nothing was signed.`);
   }
   const final = await pollOrder(created.order.id, onOrder);
   return { order: final, hash };

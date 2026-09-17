@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePollar } from '@pollar/react';
 import { Chrome } from '../../components/Chrome';
-import { weave, bankMatches, STELLAR_USDC, NGN, shortG, type Bank } from '../../lib/weave';
+import { weave, verifyAccount, bankMatches, STELLAR_USDC, NGN, shortG, isGAddress, type Bank } from '../../lib/weave';
 import { useNetwork, explorerTx } from '../../lib/network';
 import { bestQuote, bobFromUsdcOfframp, usdcFromBobOnramp, type RampQuote } from '../../lib/pollar-ramps';
 import { runFlow, type To, type From, type FlowEvent, type FlowResult } from '../../lib/flows';
@@ -74,7 +74,7 @@ export default function Dashboard() {
   useEffect(() => { try { setHandle(localStorage.getItem('corridor.handle')); } catch {} }, []);
   async function claim() {
     setHandleErr(null);
-    const r = await fetch('/api/directory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ handle: handleDraft, address: wallet?.address }) }).then(r => r.json());
+    const r = await fetch('/api/directory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ handle: handleDraft }) }).then(r => r.json());
     if (r.success) { setHandle(r.data.handle); setClaiming(false); try { localStorage.setItem('corridor.handle', r.data.handle); } catch {} } else setHandleErr(r.error);
   }
 
@@ -108,8 +108,9 @@ export default function Dashboard() {
     setNgName(''); setNgErr(null);
     if (!ngBank || ngAcct.length < 10) return;
     let live = true; setNgResolving(true);
-    weave('institutions/verify', { body: { institution: ngBank.code, accountIdentifier: ngAcct, currency: 'NGN' } })
-      .then(r => { if (!live) return; if (r.ok && r.data) setNgName(String(r.data)); else setNgErr('We couldn’t find that account.'); })
+    verifyAccount(ngBank.code, ngAcct)
+      .then(name => { if (!live) return; if (name) setNgName(name); else setNgErr('We couldn’t find that account.'); })
+      .catch(e => live && setNgErr(e.message))
       .finally(() => live && setNgResolving(false));
     return () => { live = false; };
   }, [ngBank, ngAcct]);
@@ -118,15 +119,16 @@ export default function Dashboard() {
     setPName(''); setPErr(null);
     if (!pBank || pAcct.length < 10) return;
     let live = true;
-    weave('institutions/verify', { body: { institution: pBank.code, accountIdentifier: pAcct, currency: 'NGN' } })
-      .then(r => { if (!live) return; if (r.ok && r.data) setPName(String(r.data)); else setPErr('We couldn’t find that account.'); });
+    verifyAccount(pBank.code, pAcct)
+      .then(name => { if (!live) return; if (name) setPName(name); else setPErr('We couldn’t find that account.'); })
+      .catch(e => live && setPErr(e.message));
     return () => { live = false; };
   }, [pBank, pAcct]);
   // friend resolution
   useEffect(() => {
     setFrAddr(null); setFrHandle(null); setFrErr(null);
     const v = frInput.trim();
-    if (/^G[A-Z2-7]{55}$/.test(v)) { setFrAddr(v); return; }
+    if (isGAddress(v)) { setFrAddr(v); return; }
     const h = v.replace(/^@/, '').toLowerCase();
     if (h.length < 3) return;
     let live = true;
