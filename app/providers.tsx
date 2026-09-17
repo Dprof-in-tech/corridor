@@ -6,6 +6,11 @@ import { PollarProvider } from '@pollar/react';
 // Nigerian leg. One provider at the root gives every page usePollar().
 const apiKey = process.env.NEXT_PUBLIC_POLLAR_PUBLISHABLE_KEY || '';
 const stellarNetwork = (process.env.NEXT_PUBLIC_POLLAR_NETWORK === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet';
+// Where Pollar sends the OAuth popup once Google/GitHub is done. Must be
+// registered on the Pollar app (its redirect-URI allowlist) — the SDK's own
+// default is the bare origin; we use a dedicated page so the popup can close itself.
+const oauthRedirectUri = process.env.NEXT_PUBLIC_POLLAR_REDIRECT_URI
+  || (typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined);
 
 export function Providers({ children }: { children: React.ReactNode }) {
   if (!apiKey) {
@@ -15,5 +20,5 @@ export function Providers({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  return <PollarProvider client={{ apiKey, stellarNetwork }}>{children}</PollarProvider>;
+  return <PollarProvider client={{ apiKey, stellarNetwork, ...(oauthRedirectUri ? { oauthRedirectUri } : {}) }}>{children}</PollarProvider>;
 }
