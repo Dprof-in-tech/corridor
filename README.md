@@ -11,27 +11,29 @@
 | **Network** | Stellar (testnet in the demo; the Nigerian leg is live on mainnet) |
 
 Corridor is the African leg of an Africa ↔ Latin America corridor on Stellar,
-built for the Pollar hackathon. It connects any Nigerian bank account to
+built for the Pollar hackathon. It connects African bank accounts — Nigeria
+today; Kenya, Uganda and Tanzania on the same rail, a switch away — to
 Pollar's Bolivia (BOB) ramp, non-custodially, so money moves
-**Nigeria → Bolivia**, **Bolivia → Nigeria**, and in and out of a Stellar
-wallet from a Nigerian bank — in one sentence:
+**Africa → Bolivia**, **Bolivia → Africa**, and in and out of a Stellar
+wallet from a local bank — in one sentence:
 
 > I want to send money to **a bank in Nigeria**, paying with **my balance**, and the amount is **$25**.
 
 ## Contents
 
 1. [What it does](#what-it-does)
-2. [Who does what](#who-does-what)
-3. [Testnet vs. mainnet](#testnet-vs-mainnet--network-follows-credentials)
-4. [Architecture](#architecture)
-5. [The Weave API endpoints Corridor uses](#the-weave-api-endpoints-corridor-uses)
-6. [Project layout](#project-layout)
-7. [Running it locally](#running-it-locally)
-8. [Deploying](#deploying)
-9. [Demo script](#demo-script-3-minutes-testnet)
-10. [Custody and security](#custody-and-security)
-11. [Troubleshooting](#troubleshooting)
-12. [Credits](#credits)
+2. [Beyond Nigeria: Kenya, Uganda, Tanzania](#beyond-nigeria-kenya-uganda-tanzania)
+3. [Who does what](#who-does-what)
+4. [Testnet vs. mainnet](#testnet-vs-mainnet--network-follows-credentials)
+5. [Architecture](#architecture)
+6. [The Weave API endpoints Corridor uses](#the-weave-api-endpoints-corridor-uses)
+7. [Project layout](#project-layout)
+8. [Running it locally](#running-it-locally)
+9. [Deploying](#deploying)
+10. [Demo script](#demo-script-3-minutes-testnet)
+11. [Custody and security](#custody-and-security)
+12. [Troubleshooting](#troubleshooting)
+13. [Credits](#credits)
 
 ## What it does
 
@@ -60,8 +62,26 @@ Around that:
   Pollar for the BOB legs).
 - **A first-run tour** that walks a brand-new user through their first top-up.
 - **A test-mode switch** in the header (see below).
+- **Kenya, Uganda, Tanzania** shown as coming-soon recipients — same Weave rail as naira, not switched on yet.
 - **`/mainnet`** — the real mainnet transactions, re-checked against Horizon on
   every load, plus a hop-by-hop walkthrough of the mainnet path.
+
+## Beyond Nigeria: Kenya, Uganda, Tanzania
+
+The African side is not Nigeria-specific. Weave's payout rail (Paycrest)
+already carries **KES, UGX and TZS** as well as NGN; Nigeria is the corridor
+that is switched on today, and the others are enabled on Weave's side without
+any new integration. Corridor is built country-agnostic to match:
+
+- `lib/countries.ts` is the single list of African countries — code, currency,
+  symbol, pill colour and a `live` flag. The recipient pills, the landing and
+  `/mainnet` all read from it.
+- Countries that are not live yet show as **"a bank in Kenya · SOON"** in the
+  send flow, with the reason on hover, so the scope is honest about what runs
+  today and what is one switch away.
+- Turning a country on is: Weave enables the currency → set `live: true` →
+  the pill becomes selectable. The order shape is the same
+  (`dest: { kind: 'bank_account', assetKey: 'fiat:KES', … }`).
 
 ## Who does what
 

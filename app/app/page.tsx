@@ -308,7 +308,6 @@ export default function Dashboard() {
                     a bank in {c.name}<span style={{ font: '11px var(--font-mono)', letterSpacing: '.06em', color: '#8A8A80', marginLeft: 4 }}>SOON</span>
                   </Pill>
                 ))}
-                <span style={{ font: '13px var(--font-body)', color: '#8A8A80' }}>Same rail as naira, not switched on yet.</span>
               </div>
             </div>
 
