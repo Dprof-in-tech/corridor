@@ -1,13 +1,16 @@
 'use client';
 
+import { getNetwork } from './network';
+
 // Browser → our /api/weave proxy → Weave API (secret key stays server-side).
+// The network header tells the proxy which key pair (live / sandbox) to use.
 
 export type ApiResult<T = any> = { ok: boolean; status: number; data: T; error?: string };
 
 export async function weave<T = any>(path: string, init?: { method?: 'GET' | 'POST'; body?: unknown }): Promise<ApiResult<T>> {
   const res = await fetch(`/api/weave/${path.replace(/^\//, '')}`, {
     method: init?.method ?? (init?.body ? 'POST' : 'GET'),
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-corridor-network': getNetwork() },
     body: init?.body ? JSON.stringify(init.body) : undefined,
   });
   const j = await res.json().catch(() => ({}));
@@ -49,9 +52,4 @@ export async function pollOrder(orderId: string, onTick: (o: any) => void, opts:
   }
 }
 
-export const POLLAR_NETWORK: 'mainnet' | 'testnet' = process.env.NEXT_PUBLIC_POLLAR_NETWORK === 'mainnet' ? 'mainnet' : 'testnet';
-export const IS_TESTNET = POLLAR_NETWORK === 'testnet';
-export const USDC_ISSUER: Record<'mainnet' | 'testnet', string> = {
-  mainnet: 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
-  testnet: 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5',
-};
+export { USDC_ISSUER, getNetwork, isTestnet, useNetwork } from './network';

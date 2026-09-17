@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePollar } from '@pollar/react';
 import { Chrome } from '../../components/Chrome';
-import { weave, bankMatches, STELLAR_USDC, NGN, IS_TESTNET, shortG, type Bank } from '../../lib/weave';
-import { bestQuote, type RampQuote } from '../../lib/pollar-ramps';
+import { weave, bankMatches, STELLAR_USDC, NGN, shortG, type Bank } from '../../lib/weave';
+import { useNetwork, explorerTx } from '../../lib/network';
+import { bestQuote, bobFromUsdcOfframp, usdcFromBobOnramp, type RampQuote } from '../../lib/pollar-ramps';
 import { runFlow, type To, type From, type FlowEvent, type FlowResult } from '../../lib/flows';
 
 // Dashboard (design handoff "Dashboard v3"): balance, three secondary actions,
@@ -44,6 +45,7 @@ const Typeahead = ({ q, setQ, pick, picked, options, placeholder }: { q: string;
 
 export default function Dashboard() {
   const { wallet, walletBalance, refreshWalletBalance, signAndSubmitTx, runTx, getClient } = usePollar();
+  const IS_TESTNET = useNetwork() === 'testnet';
   const bal = walletBalance.step === 'loaded' ? Number(walletBalance.data.balances.find(b => b.code === 'USDC')?.balance ?? 0) : null;
 
   // Balance may still be idle when we mount (login finished in another tab).
@@ -130,21 +132,50 @@ export default function Dashboard() {
   const detailsOk = to === 'ng' ? !!ngName : to === 'bo' ? !!boQuote && (boQuote.requiredFields ?? []).every((f: any) => f.optional || (boFields[f.key] ?? '').trim()) : to === 'fr' ? !!frAddr : false;
   const blocked: From | null = to === 'ng' ? 'ngn' : to === 'bo' ? 'bob' : null;
   const a = parseFloat(amount) || 0;
+  // Rough USD value from the cached rates — only for the balance check.
   const usd = !from ? 0 : from === 'ngn' ? a / ngnPerUsd : from === 'bob' ? a / bobPerUsd : a;
-  const out = to === 'ng' ? fmt(usd * ngnPerUsd, 'NGN') : to === 'bo' ? fmt(usd * bobPerUsd, 'BOB') : fmt(usd, 'USD');
+  // What actually arrives, from real quotes (Weave for the naira legs, Pollar
+  // for the BOB legs), debounced as the amount is typed.
+  const [est, setEst] = useState<{ key: string; value: number | null; error?: string } | null>(null);
+  const estKey = `${to}|${from}|${a}`;
+  useEffect(() => {
+    if (!to || !from || !a) { setEst(null); return; }
+    let live = true;
+    const t = setTimeout(async () => {
+      try {
+        const client = getClient();
+        const q = async (fromKey: string, toKey: string, amt: number) => {
+          const r = await weave(`quotes?from=${fromKey}&to=${toKey}&amount=${amt}&amountIn=source`);
+          if (!r.ok) throw new Error(r.error || 'No quote');
+          return Number(r.data.estimatedDest);
+        };
+        // 1) source → USDC in the wallet
+        const usdc = from === 'bal' ? a : from === 'ngn' ? await q(NGN, STELLAR_USDC, a) : (await usdcFromBobOnramp(client, a)).usdc;
+        // 2) USDC → destination
+        const value = to === 'fr' ? usdc : to === 'ng' ? await q(STELLAR_USDC, NGN, usdc) : (await bobFromUsdcOfframp(client, usdc)).bob;
+        if (live) setEst({ key: estKey, value });
+      } catch (e: any) { if (live) setEst({ key: estKey, value: null, error: e?.message }); }
+    }, 400);
+    return () => { live = false; clearTimeout(t); };
+  }, [estKey, to, from, a, getClient]);
+  const estReady = !!est && est.key === estKey;
+  const outCcy = to === 'ng' ? 'NGN' : to === 'bo' ? 'BOB' : 'USD';
+  const out = estReady && est!.value != null ? fmt(est!.value, outCcy) : fmt(to === 'ng' ? usd * ngnPerUsd : to === 'bo' ? usd * bobPerUsd : usd, outCcy);
   const over = from === 'bal' && bal != null && usd > bal;
   const tooSmall = !IS_TESTNET && a > 0 && to === 'ng' && from === 'bal' && a < 2;  // LI.FI bridge minimum (mainnet only)
   const payerOk = from !== 'ngn' || !!pName;
   const step2 = !!to && detailsOk;
   const step3 = step2 && !!from && payerOk;
-  const step4 = step3 && a > 0 && !over && !tooSmall;
+  const step4 = step3 && a > 0 && !over && !tooSmall && estReady && est!.value != null;
   const sym = from === 'ngn' ? '₦' : from === 'bob' ? 'Bs' : '$';
   const self = to === 'fr' && !!frAddr && frAddr === wallet?.address;
   const eta = to === 'fr' && from === 'bal' ? 'in seconds' : to === 'ng' ? 'in about 3 minutes' : 'in a few minutes';
   const summary = !a ? 'Type an amount to see what arrives.'
     : over ? `That's more than your ${fmt(bal ?? 0, 'USD')}. Add money first, or pay from a bank.`
     : tooSmall ? 'The bridge minimum is $2.'
-    : `${self ? 'You get' : 'They receive'} ${from === 'bal' ? '' : 'about '}${out} ${eta}.${from === 'bal' && to === 'fr' ? ' No fee.' : ''}`;
+    : !estReady ? 'Getting a quote…'
+    : est!.value == null ? (est!.error ?? 'No quote for that amount.')
+    : `${self ? 'You get' : 'They receive'} ${out} ${eta}.${from === 'bal' && to === 'fr' ? ' No fee.' : ' Fees included.'}`;
   const ctaLabel = self ? `Add ${fmt(a, from === 'ngn' ? 'NGN' : 'BOB')}` : `Send ${out}`;
   const sourceHint = from === 'bal' ? `${fmt(bal ?? 0, 'USD')} available.` : from === 'ngn' ? 'We give you account details; you transfer from any Nigerian bank app.' : from === 'bob' ? (IS_TESTNET ? 'You scan one QR from your Bolivian banking app (mocked on testnet).' : 'You scan one QR from your Bolivian banking app.') : "Pick how you'd like to pay.";
 
@@ -153,6 +184,7 @@ export default function Dashboard() {
     setPBank(null); setPBankQ(''); setPAcct(''); setPName(''); setRunning(false); setStages([]); setBankDetails(null); setQr(null); setKyc(null); setHash(null); setResult(null); setError(null);
   }
   function pickTo(t: To) { setTo(t); setFrom(null); setAmount(''); setError(null); }
+  function pickFrom(f: From) { if (f !== from) setAmount(''); setFrom(f); }  // the currency changes with the source
   function startAdd() { reset(); setTo('fr'); if (wallet) { setFrInput(wallet.address); } setFrom('ngn'); }
   function startWithdraw() { reset(); setTo('ng'); setFrom('bal'); }
 
@@ -265,9 +297,9 @@ export default function Dashboard() {
               <div className="rise" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                 <div className="prose-step">paying with</div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <Pill on={from === 'bal'} onClick={() => setFrom('bal')}>my balance</Pill>
-                  <Pill on={from === 'ngn'} disabled={blocked === 'ngn'} title={blocked === 'ngn' ? 'Naira to a Nigerian bank is just a local transfer.' : undefined} onClick={() => setFrom('ngn')}>a naira bank transfer</Pill>
-                  <Pill on={from === 'bob'} disabled={blocked === 'bob'} title={blocked === 'bob' ? 'Bolivianos to a Bolivian bank is just a local transfer.' : undefined} onClick={() => setFrom('bob')}>a Bolivian bank QR</Pill>
+                  <Pill on={from === 'bal'} onClick={() => pickFrom('bal')}>my balance</Pill>
+                  <Pill on={from === 'ngn'} disabled={blocked === 'ngn'} title={blocked === 'ngn' ? 'Naira to a Nigerian bank is just a local transfer.' : undefined} onClick={() => pickFrom('ngn')}>a naira bank transfer</Pill>
+                  <Pill on={from === 'bob'} disabled={blocked === 'bob'} title={blocked === 'bob' ? 'Bolivianos to a Bolivian bank is just a local transfer.' : undefined} onClick={() => pickFrom('bob')}>a Bolivian bank QR</Pill>
                 </div>
                 <div style={{ font: '14px var(--font-body)', color: '#8A8A80' }}>{sourceHint}</div>
                 {from === 'ngn' && (
@@ -312,7 +344,7 @@ export default function Dashboard() {
               <>
                 <div style={{ font: '400 44px/1.15 var(--font-display)', color: '#2F4A3B' }}>{result.headline}<span style={{ color: '#4F7A5C', fontStyle: 'italic' }}>.</span></div>
                 <div style={{ font: '16px/1.5 var(--font-body)', color: '#5E6058' }}>{result.detail}{result.mocked ? ' · mocked on testnet' : ''}</div>
-                {hash && <a href={`https://stellar.expert/explorer/${IS_TESTNET ? 'testnet' : 'public'}/tx/${hash}`} target="_blank" rel="noreferrer" style={{ font: '13px var(--font-body)', color: '#4F7A5C' }}>View on Stellar →</a>}
+                {hash && <a href={explorerTx(hash)} target="_blank" rel="noreferrer" style={{ font: '13px var(--font-body)', color: '#4F7A5C' }}>View on Stellar →</a>}
                 <div><button className="cta" onClick={reset}>Done</button></div>
               </>
             ) : (

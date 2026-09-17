@@ -1,0 +1,137 @@
+/* Corridor skin for Pollar's modals (History, Receive, Send, Login, KYC, ramp).
+   The SDK sets its theme as inline CSS variables on .pollar-modal-card, so the
+   overrides here are !important on purpose — that is the only way to win over
+   an inline declaration. Everything else is plain class styling. */
+
+.pollar-overlay { background: rgba(47, 74, 59, 0.35) !important; backdrop-filter: blur(6px); }
+
+.pollar-modal-card {
+  --pollar-accent: #2F4A3B !important;
+  --pollar-bg: #FBF8F2 !important;
+  --pollar-border: #D9D2C2 !important;
+  --pollar-text: #2F4A3B !important;
+  --pollar-muted: #8A8A80 !important;
+  --pollar-btn-primary-fg: #F3EDE0 !important;
+  --pollar-btn-secondary-bg: #F3EDE0 !important;
+  --pollar-btn-secondary-fg: #2F4A3B !important;
+  --pollar-input-bg: #F3EDE0 !important;
+  --pollar-error-bg: #F6E1DC !important;
+  --pollar-error-border: #E7C3BA !important;
+  --pollar-error-text: #A8321E !important;
+  --pollar-success-text: #4F7A5C !important;
+  --pollar-modal-border-radius: 28px !important;
+  --pollar-buttons-border-radius: 999px !important;
+  --pollar-buttons-height: 48px !important;
+  --pollar-input-height: 48px !important;
+  --pollar-input-border-radius: 24px !important;
+  --pollar-card-border-radius: 18px !important;
+  --pollar-modal-padding: 28px !important;
+  font-family: var(--font-body) !important;
+  box-shadow: 0 40px 80px -40px rgba(47, 74, 59, 0.45) !important;
+  border-color: #D9D2C2 !important;
+}
+
+/* Titles in the serif, like the rest of the app. */
+.pollar-modal-card .pollar-modal-title,
+.pollar-modal-card .pollar-title,
+.pollar-modal-card .pollar-tx-summary-title,
+.pollar-modal-card .pollar-tx-result-label {
+  font-family: var(--font-display) !important; font-weight: 400 !important; letter-spacing: -0.01em;
+}
+.pollar-modal-card .pollar-modal-title { font-size: 26px !important; }
+.pollar-modal-card .pollar-title { font-size: 30px !important; }
+.pollar-modal-card .pollar-subtitle { font-size: 14px !important; }
+
+/* Labels as mono eyebrows. */
+.pollar-modal-card .pollar-label,
+.pollar-modal-card .pollar-send-label,
+.pollar-modal-card .pollar-tx-meta-label,
+.pollar-modal-card .pollar-hist-item-badge {
+  font-family: var(--font-mono) !important; font-weight: 400 !important; letter-spacing: .08em; text-transform: uppercase; font-size: 11px !important; color: #8A8A80 !important;
+}
+
+/* Buttons: ink pill (primary), outlined pill (secondary), plain circle (close). */
+.pollar-modal-card .pollar-btn-primary { font-weight: 400 !important; font-size: 15px !important; transition: background .15s; }
+.pollar-modal-card .pollar-btn-primary:hover:not(:disabled) { background-color: #4F7A5C !important; opacity: 1 !important; }
+.pollar-modal-card .pollar-btn-secondary,
+.pollar-modal-card .pollar-hist-page-btn,
+.pollar-modal-card .pollar-receive-copy-btn,
+.pollar-modal-card .pollar-copy-btn,
+.pollar-modal-card .pollar-copy-btn-sm,
+.pollar-modal-card .pollar-tx-result-btn,
+.pollar-modal-card .pollar-tx-retry-btn {
+  border-radius: 999px !important; border-color: #B8C7BA !important; background: transparent !important; color: #2F4A3B !important; font-weight: 400 !important;
+}
+.pollar-modal-card .pollar-btn-secondary:hover:not(:disabled),
+.pollar-modal-card .pollar-hist-page-btn:hover:not(:disabled),
+.pollar-modal-card .pollar-receive-copy-btn:hover,
+.pollar-modal-card .pollar-copy-btn:hover { border-color: #2F4A3B !important; background: #F3EDE0 !important; }
+.pollar-modal-card .pollar-close-btn,
+.pollar-modal-card .pollar-back-btn,
+.pollar-modal-card .pollar-modal-close { border-radius: 50% !important; border-color: transparent !important; color: #8A8A80 !important; }
+.pollar-modal-card .pollar-close-btn:hover,
+.pollar-modal-card .pollar-back-btn:hover,
+.pollar-modal-card .pollar-modal-close:hover { background: #F3EDE0 !important; color: #2F4A3B !important; }
+
+/* Inputs: cream fields with the app's focus ring. */
+.pollar-modal-card .pollar-input,
+.pollar-modal-card .pollar-send-select,
+.pollar-modal-card select { border-color: #D9D2C2 !important; }
+.pollar-modal-card .pollar-input:focus { box-shadow: 0 0 0 1px #2F4A3B !important; border-color: #2F4A3B !important; }
+
+/* Tabs → segmented cream pill. */
+.pollar-modal-card .pollar-tabs { border-radius: 999px !important; background: #F3EDE0 !important; }
+.pollar-modal-card .pollar-tab { border-radius: 999px !important; font-weight: 400 !important; font-family: var(--font-display) !important; font-style: italic; font-size: 16px !important; }
+
+/* History: card rows on cream, mono hashes, status badges in the palette. */
+.pollar-modal-card .pollar-hist-item { background: #F3EDE0 !important; border-color: transparent !important; padding: 14px 16px !important; }
+.pollar-modal-card .pollar-hist-item-summary { font-family: var(--font-display) !important; font-weight: 400 !important; font-size: 19px !important; color: #2F4A3B !important; }
+.pollar-modal-card .pollar-hist-item-issuer { font-family: var(--font-mono) !important; font-size: 11px !important; border-radius: 999px !important; background: #FBF8F2 !important; border: 1px solid #D9D2C2; padding: 2px 8px; }
+.pollar-modal-card .pollar-hist-item-hash,
+.pollar-modal-card .pollar-receive-address,
+.pollar-modal-card .pollar-tx-result-hash,
+.pollar-modal-card .pollar-address,
+.pollar-modal-card .pollar-issuer-addr,
+.pollar-modal-card .pollar-bal-issuer-addr { font-family: var(--font-mono) !important; color: #5E6058 !important; }
+.pollar-modal-card .pollar-hist-item-badge { background: #FBF8F2 !important; border: 1px solid #D9D2C2; color: #5E6058 !important; }
+.pollar-modal-card .pollar-hist-item-badge[data-status="success"],
+.pollar-modal-card .pollar-hist-item-badge[data-status="completed"],
+.pollar-modal-card .pollar-hist-item-badge[data-status="confirmed"] { color: #4F7A5C !important; border-color: #B8C7BA; }
+.pollar-modal-card .pollar-hist-item-badge[data-status="failed"],
+.pollar-modal-card .pollar-hist-item-badge[data-status="error"] { color: #A8321E !important; border-color: #E7C3BA; }
+.pollar-modal-card .pollar-hist-item-explorer { color: #4F7A5C !important; }
+
+/* Receive: QR on a cream card, address row with a hairline. */
+.pollar-modal-card .pollar-receive-qr { background: #FFFFFF !important; border-color: #D9D2C2 !important; border-radius: 22px !important; }
+.pollar-modal-card .pollar-receive-address-row { border: 1px solid #D9D2C2; border-radius: 18px; padding: 12px 14px; background: #F3EDE0; }
+.pollar-modal-card .pollar-receive-instructions { color: #5E6058 !important; font-size: 13px !important; }
+
+/* Balances / assets lists on cream. */
+.pollar-modal-card .pollar-bal-item,
+.pollar-modal-card .pollar-asset-item,
+.pollar-modal-card .pollar-sessions-item,
+.pollar-modal-card .pollar-dist-item,
+.pollar-modal-card .pollar-swap-quote,
+.pollar-modal-card .pollar-tx-summary,
+.pollar-modal-card .pollar-tx-meta { background: #F3EDE0 !important; border-color: transparent !important; }
+.pollar-modal-card .pollar-bal-amount { font-family: var(--font-display) !important; font-size: 22px !important; }
+.pollar-modal-card .pollar-chain-tag,
+.pollar-modal-card .pollar-bal-chain-tag,
+.pollar-modal-card .pollar-asset-tag { border-radius: 999px !important; background: #FBF8F2 !important; color: #4F7A5C !important; font-family: var(--font-mono) !important; font-size: 10px !important; letter-spacing: .06em; }
+
+/* Login (fallback modal) and social buttons. */
+.pollar-modal-card .pollar-social-btn,
+.pollar-modal-card .pollar-wallet-list-btn,
+.pollar-modal-card .pollar-kyc-provider-btn,
+.pollar-modal-card .pollar-gsi-material-button,
+.pollar-modal-card .pollar-github-button { border-radius: 999px !important; border: 1px solid #2F4A3B !important; background: transparent !important; color: #2F4A3B !important; }
+.pollar-modal-card .pollar-social-btn:hover,
+.pollar-modal-card .pollar-wallet-list-btn:hover { background: #2F4A3B !important; color: #F3EDE0 !important; }
+.pollar-modal-card .pollar-divider-line { background: #D9D2C2 !important; }
+
+/* Footer brand line, spinners, switches. */
+.pollar-modal-card .pollar-footer { border-color: #E6E0D0 !important; }
+.pollar-modal-card .pollar-footer-protected, .pollar-modal-card .pollar-footer-version { color: #8A8A80 !important; }
+.pollar-modal-card .pollar-spinner { border-color: #D9D2C2 !important; border-top-color: #4F7A5C !important; }
+.pollar-modal-card .pollar-switch { background: #B8C7BA !important; }
+.pollar-modal-card .pollar-switch-on { background: #4F7A5C !important; }

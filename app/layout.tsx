@@ -3,6 +3,7 @@ import { Instrument_Serif, IBM_Plex_Sans, IBM_Plex_Mono, Roboto } from 'next/fon
 // Pollar's modals (login, tx history, receive, ramp, KYC…) ship their CSS separately.
 import '@pollar/react/styles.css';
 import './globals.css';
+import './pollar-theme.css';
 import { Providers } from './providers';
 
 const instrument = Instrument_Serif({ subsets: ['latin'], weight: '400', style: ['normal', 'italic'], variable: '--font-instrument' });

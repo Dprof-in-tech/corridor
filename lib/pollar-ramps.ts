@@ -1,7 +1,8 @@
 'use client';
 
 import type { PollarClient } from '@pollar/core';
-import { weave, IS_TESTNET } from './weave';
+import { weave } from './weave';
+import { isTestnet } from './network';
 
 // The Bolivian (BOB) leg. On MAINNET this is Pollar's real Stereum ramp
 // (QR in, ACH out) and nothing here is ours. On TESTNET Pollar exposes no BOB
@@ -40,7 +41,7 @@ export async function bestQuote(client: PollarClient, direction: 'onramp' | 'off
     const q = (quotes as RampQuote[]).find(x => x.recommended) ?? (quotes as RampQuote[])[0];
     if (q) return q;
   } catch { /* fall through to the mock on testnet */ }
-  if (IS_TESTNET) return mockQuote(direction, amountFiat);
+  if (isTestnet()) return mockQuote(direction, amountFiat);
   throw new Error('No Bolivian ramp is enabled for this Pollar app. Enable Stereum (BOB · QR in / ACH out) under Integrations → Ramps on a mainnet app — the Pollar team can switch it on.');
 }
 
@@ -51,6 +52,21 @@ export async function bobForUsdc(client: PollarClient, usdc: number): Promise<{ 
   const bob = Math.max(Number(probe.minAmount ?? 0), Math.ceil(est * 100) / 100);
   const quote = await bestQuote(client, 'onramp', bob);
   return { bob, quote };
+}
+
+/** BOB that `usdc` pays out to a Bolivian bank (off-ramp), net of the provider fee. */
+export async function bobFromUsdcOfframp(client: PollarClient, usdc: number): Promise<{ bob: number; quote: RampQuote }> {
+  const probe = await bestQuote(client, 'offramp', Math.max(10, usdc * MOCK_RATE_BOB_PER_USD));
+  const bobPerUsdc = probe.cryptoAmount && probe.fiatAmount ? Number(probe.fiatAmount) / Number(probe.cryptoAmount) : Number(probe.rate);
+  const bob = Math.floor(usdc * bobPerUsdc * 100) / 100;
+  return { bob, quote: await bestQuote(client, 'offramp', bob) };
+}
+
+/** USDC that lands in the wallet when the user pays `bob` by QR (on-ramp), net of the provider fee. */
+export async function usdcFromBobOnramp(client: PollarClient, bob: number): Promise<{ usdc: number; quote: RampQuote }> {
+  const quote = await bestQuote(client, 'onramp', bob);
+  const usdc = quote.cryptoAmount != null ? Number(quote.cryptoAmount) : (bob - (quote.feeCurrency === 'BOB' ? Number(quote.fee ?? 0) : 0)) / Number(quote.rate);
+  return { usdc: Math.floor(usdc * 100) / 100, quote };
 }
 
 /** USDC that will be debited to pay out `bob` (off-ramp). */

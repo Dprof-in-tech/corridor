@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { usePollar } from '@pollar/react';
 import { GoogleButton } from '../components/GoogleButton';
 import { Coins, LandingShapes, Logo, useBoardScale } from '../components/Brand';
-import { IS_TESTNET } from '../lib/weave';
+import { useNetwork } from '../lib/network';
 
 // Landing / sign-in (design handoff "Corridor Landing"). A fixed 1200×900 art
 // board on wide viewports; below ~1000px the board (below its own 1200px width) becomes a fluid column with
@@ -43,6 +43,7 @@ export default function Landing() {
   }), [getClient]);
 
   const emailOk = /.+@.+\..+/.test(email);
+  const IS_TESTNET = useNetwork() === 'testnet';
   const k = useBoardScale();
   // Keep the arches below the hero text: measure where the bullets end and
   // cap the arch height to the room left under them.
@@ -108,7 +109,7 @@ export default function Landing() {
           </div>
           <div ref={heroRef} style={{ marginTop: 72, maxWidth: 640, position: 'relative', zIndex: 1 }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, font: '12px var(--font-mono)', letterSpacing: '.08em', color: '#4F7A5C' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#4F7A5C' }} />NIGERIA ↔ BOLIVIA · {IS_TESTNET ? 'TESTNET DEMO' : 'LIVE ON MAINNET'}
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#4F7A5C' }} />NIGERIA ↔ BOLIVIA · {IS_TESTNET ? 'TESTNET DEMO' : 'MAINNET · COMING SOON'}
             </div>
             <h1 className="headline">Naira in Lagos.<br />Bolivianos in La Paz.<br /><span style={{ color: '#4F7A5C', fontStyle: 'italic' }}>Minutes, not days.</span></h1>
             <div className="bullets">

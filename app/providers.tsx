@@ -1,11 +1,18 @@
 'use client';
 
 import { PollarProvider } from '@pollar/react';
+import { useNetwork, pollarKeyFor } from '../lib/network';
 
 // Pollar owns identity + the Stellar wallet + the LatAm ramps; Weave owns the
 // Nigerian leg. One provider at the root gives every page usePollar().
-const apiKey = process.env.NEXT_PUBLIC_POLLAR_PUBLISHABLE_KEY || '';
-const stellarNetwork = (process.env.NEXT_PUBLIC_POLLAR_NETWORK === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet';
+//
+// Each Pollar app is bound to one network, so when mainnet goes live the
+// test-mode switch will swap the publishable key and REMOUNT the provider (the
+// SDK locks its client at first render; sessions are per app). Until then the
+// mainnet side of the switch shows a "coming soon" page and the testnet client
+// stays mounted, so flipping back keeps the session.
+const MAINNET_LIVE = false;
+
 // Where Pollar sends the OAuth popup once Google/GitHub is done. Must be
 // registered on the Pollar app (its redirect-URI allowlist) — the SDK's own
 // default is the bare origin; we use a dedicated page so the popup can close itself.
@@ -13,6 +20,9 @@ const oauthRedirectUri = process.env.NEXT_PUBLIC_POLLAR_REDIRECT_URI
   || (typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined);
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const network = useNetwork();
+  const active = MAINNET_LIVE ? network : 'testnet';
+  const apiKey = pollarKeyFor(active);
   if (!apiKey) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 text-ink-muted text-sm">
@@ -20,5 +30,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  return <PollarProvider client={{ apiKey, stellarNetwork, ...(oauthRedirectUri ? { oauthRedirectUri } : {}) }}>{children}</PollarProvider>;
+  return (
+    <PollarProvider key={active} client={{ apiKey, stellarNetwork: active, ...(oauthRedirectUri ? { oauthRedirectUri } : {}) }}>
+      {children}
+    </PollarProvider>
+  );
 }

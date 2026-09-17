@@ -1,6 +1,7 @@
 'use client';
 
-import { weave, pollOrder, STELLAR_USDC, NGN, POLLAR_NETWORK, USDC_ISSUER } from './weave';
+import { weave, pollOrder, STELLAR_USDC, NGN } from './weave';
+import { usdcIssuer } from './network';
 import { runBridge, type Stage } from './stellar-bridge';
 
 // The reusable "USDC in a Pollar wallet → naira in a Nigerian bank" primitive.
@@ -40,7 +41,7 @@ export async function executeNigeriaSend(
     // when quotable): ONE sponsored Stellar payment with the order's memo.
     onStage('pay');
     const out = await signer.runTx('payment',
-      { destination: na.depositAddress, amount: Number(na.amount).toFixed(7), asset: { type: 'credit_alphanum4', code: 'USDC', issuer: USDC_ISSUER[POLLAR_NETWORK] } },
+      { destination: na.depositAddress, amount: Number(na.amount).toFixed(7), asset: { type: 'credit_alphanum4', code: 'USDC', issuer: usdcIssuer() } },
       na.depositMemo ? { memo: { type: 'text', value: String(na.depositMemo).slice(0, 28) } } : undefined,
     );
     if (out.status === 'error' || !out.hash) throw new Error(out.details || out.message || 'Your wallet rejected the payment');

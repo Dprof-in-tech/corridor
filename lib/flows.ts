@@ -1,9 +1,10 @@
 'use client';
 
 import type { PollarClient } from '@pollar/core';
-import { weave, pollOrder, STELLAR_USDC, NGN, POLLAR_NETWORK, USDC_ISSUER } from './weave';
+import { weave, pollOrder, STELLAR_USDC, NGN } from './weave';
+import { usdcIssuer } from './network';
 import { createNigeriaSend, executeNigeriaSend, type PollarSigner, type NigeriaRecipient } from './nigeria-send';
-import { bestQuote, bobForUsdc, usdcForBob, startOnRamp, startOffRamp, isKycBlocked, type RampQuote } from './pollar-ramps';
+import { bestQuote, usdcFromBobOnramp, bobFromUsdcOfframp, startOnRamp, startOffRamp, isKycBlocked, type RampQuote } from './pollar-ramps';
 
 // The conversational dashboard reduces every transfer to (recipient, source,
 // amount). This module turns that triple into the concrete sequence of Weave
@@ -79,12 +80,13 @@ export async function runFlow(input: FlowInput, client: PollarClient, signer: Po
     if (final.status !== 'completed') throw new Error('The deposit could not be completed.');
     return final;
   };
-  // BOB on-ramp into `dest` wallet (Pollar; mocked on testnet).
-  const onrampBob = async (usdTarget: number, dest: string) => {
-    const { bob, quote } = await bobForUsdc(client, usdTarget);
+  // BOB on-ramp into `dest` wallet (Pollar; mocked on testnet). `bob` is what
+  // the user pays; the USDC that lands is the quote's net amount.
+  const onrampBob = async (bob: number, dest: string) => {
+    const { usdc, quote } = await usdcFromBobOnramp(client, bob);
     const before = await usdcBalance();
     emit({ kind: 'stage', label: 'Opening your BOB deposit' });
-    const ramp = await startOnRamp(client, quote, bob, dest, usdTarget);
+    const ramp = await startOnRamp(client, quote, bob, dest, usdc);
     if (isKycBlocked(ramp)) { emit({ kind: 'kyc', url: ramp.kycUrl! }); throw new Error('Pollar needs a quick identity check before Bolivian ramps. Complete it and try again.'); }
     if (ramp.mocked) {
       await new Promise<void>(res => emit({ kind: 'qr', ramp, bob, resolvePaid: res }));
@@ -96,7 +98,7 @@ export async function runFlow(input: FlowInput, client: PollarClient, signer: Po
       await client.pollRampTransaction(ramp.txId, { intervalMs: 12000, timeoutMs: 45 * 60_000 });
     }
     emit({ kind: 'stage', label: 'Waiting for USDC to land in the wallet' });
-    return { bob, landed: dest === wallet ? await waitForUsdc(before, usdTarget) : usdTarget };
+    return { usdc, landed: dest === wallet ? await waitForUsdc(before, usdc) : usdc };
   };
   // BOB off-ramp from the signed-in wallet (Pollar; mocked on testnet).
   const offrampBob = async (bob: number, bo: BoDetails) => {
@@ -105,12 +107,6 @@ export async function runFlow(input: FlowInput, client: PollarClient, signer: Po
     const out = await startOffRamp(client, q, bob, wallet, bo.fields);
     if (out.kycUrl) { emit({ kind: 'kyc', url: out.kycUrl }); throw new Error('Pollar needs a quick identity check before paying out. Complete it and try again; the USDC stays in your wallet.'); }
     return out;
-  };
-  const rates = async () => {
-    const q = await weave(`quotes?from=${STELLAR_USDC}&to=${NGN}&amount=1&amountIn=source`);
-    const ngnPerUsd = q.ok ? Number(q.data.estimatedDest) : 1400;
-    const bobQ = await bestQuote(client, 'offramp', 100).catch(() => null);
-    return { ngnPerUsd, bobPerUsd: bobQ ? Number(bobQ.rate) : 6.96 };
   };
 
   // ── the seven pairs ──────────────────────────────────────────────────────
@@ -121,19 +117,16 @@ export async function runFlow(input: FlowInput, client: PollarClient, signer: Po
       return { headline: 'Naira delivered', detail: `₦${Math.round(order.destAmount).toLocaleString()} to ${input.ng.accountName} · ${input.ng.bankName}`, hash };
     }
     if (from === 'bob') {
-      const { bobPerUsd } = await rates();
-      const usdTarget = amount / bobPerUsd;
-      const { landed } = await onrampBob(usdTarget, wallet);
-      if (landed < 2) throw new Error(`Only ${landed} USDC arrived — below the 2 USDC minimum.`);
-      const { order, hash } = await payoutNigeria(Math.min(landed, usdTarget), input.ng);
+      const { usdc, landed } = await onrampBob(amount, wallet);
+      if (landed <= 0) throw new Error('The USDC from your BOB payment has not arrived yet.');
+      const { order, hash } = await payoutNigeria(Math.min(landed, usdc), input.ng);
       return { headline: 'Naira delivered', detail: `Bs ${amount.toFixed(2)} → ₦${Math.round(order.destAmount).toLocaleString()} to ${input.ng.accountName}`, hash, mocked: true };
     }
   }
   if (to === 'bo') {
     if (!input.bo) throw new Error('Add the Bolivian bank details.');
     if (from === 'bal') {
-      const { bobPerUsd } = await rates();
-      const bob = Math.floor(amount * bobPerUsd * 100) / 100;
+      const { bob } = await bobFromUsdcOfframp(client, amount);
       const out = await offrampBob(bob, input.bo);
       return { headline: 'Bolivianos on the way', detail: `Bs ${bob.toFixed(2)} → ${input.bo.fields.bank ?? 'your bank'} ····${(input.bo.fields.account ?? '').slice(-4)}`, mocked: !!out.mocked };
     }
@@ -141,8 +134,7 @@ export async function runFlow(input: FlowInput, client: PollarClient, signer: Po
       const before = await usdcBalance();
       const dep = await depositNaira(amount, wallet);
       const landed = await waitForUsdc(before, Number(dep.destAmount));
-      const { usdc, quote } = await usdcForBob(client, 1); // probe for the rate
-      const bob = Math.floor((landed / usdc) * 100) / 100 * (quote.mocked ? 1 : 1);
+      const { bob } = await bobFromUsdcOfframp(client, landed);
       const out = await offrampBob(bob, input.bo);
       return { headline: 'Bolivianos on the way', detail: `₦${amount.toLocaleString()} → Bs ${bob.toFixed(2)} to your bank`, mocked: !!out.mocked };
     }
@@ -154,7 +146,7 @@ export async function runFlow(input: FlowInput, client: PollarClient, signer: Po
     if (from === 'bal') {
       if (dest === wallet) throw new Error("That's your own wallet.");
       emit({ kind: 'stage', label: 'Paying from your wallet (sponsored)' });
-      const out = await signer.runTx('payment', { destination: dest, amount: amount.toFixed(7), asset: { type: 'credit_alphanum4', code: 'USDC', issuer: USDC_ISSUER[POLLAR_NETWORK] } });
+      const out = await signer.runTx('payment', { destination: dest, amount: amount.toFixed(7), asset: { type: 'credit_alphanum4', code: 'USDC', issuer: usdcIssuer() } });
       if (out.status === 'error' || !out.hash) throw new Error(out.details || out.message || 'The payment failed');
       emit({ kind: 'tx', hash: out.hash });
       return { headline: 'Sent', detail: `$${amount.toFixed(2)} USDC to ${who} · settled on Stellar`, hash: out.hash };
@@ -164,10 +156,8 @@ export async function runFlow(input: FlowInput, client: PollarClient, signer: Po
       return { headline: dest === wallet ? 'Money added' : 'Sent', detail: `₦${amount.toLocaleString()} → ${Number(dep.destAmount).toFixed(2)} USDC in ${dest === wallet ? 'your wallet' : who}` };
     }
     if (from === 'bob') {
-      const { bobPerUsd } = await rates();
-      const usdTarget = amount / bobPerUsd;
-      await onrampBob(usdTarget, dest);
-      return { headline: dest === wallet ? 'Money added' : 'Sent', detail: `Bs ${amount.toFixed(2)} → ~$${usdTarget.toFixed(2)} USDC in ${dest === wallet ? 'your wallet' : who}`, mocked: true };
+      const { usdc } = await onrampBob(amount, dest);
+      return { headline: dest === wallet ? 'Money added' : 'Sent', detail: `Bs ${amount.toFixed(2)} → ${usdc.toFixed(2)} USDC in ${dest === wallet ? 'your wallet' : who}`, mocked: true };
     }
   }
   throw new Error('That combination is just a local transfer — no corridor needed.');
