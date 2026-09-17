@@ -38,7 +38,7 @@ export default function Home() {
           <div>
             <div className="text-[11.5px] uppercase tracking-wide text-ink-muted">Your Stellar wallet</div>
             <div className="mt-1 font-display text-[34px] font-semibold text-ink">{usdc == null ? '…' : usdc.toLocaleString(undefined, { maximumFractionDigits: 2 })} <span className="text-[16px] text-ink-muted font-body font-medium">USDC</span></div>
-            <div className="mt-1 text-[12.5px] text-ink-muted font-mono">{wallet ? shortG(wallet.address) : ''}{xlm != null && <span className="ml-2 font-body">· {xlm.toFixed(2)} XLM for fees</span>}</div>
+            <div className="mt-1 text-[12.5px] text-ink-muted font-mono" title={wallet?.address}>{wallet ? shortG(wallet.address) : ''}{xlm != null && <span className="ml-2 font-body">· {xlm.toFixed(2)} XLM for fees</span>}</div>
           </div>
           <div className="flex flex-col gap-2 text-right">
             <button onClick={() => refreshWalletBalance()} className="text-[12.5px] text-ink-muted hover:text-ink">Refresh</button>

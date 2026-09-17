@@ -32,7 +32,7 @@ export function Shell({ children, title, back }: { children: React.ReactNode; ti
           <div className="ml-auto flex items-center gap-2">
             {wallet && (
               <div className="flex items-center gap-2 rounded-full border border-hair bg-cream-soft px-3 py-1.5 text-[12.5px]">
-                <span className="font-mono text-ink-soft">{shortG(wallet.address)}</span>
+                <button title={wallet.address} onClick={() => navigator.clipboard.writeText(wallet.address).catch(() => {})} className="font-mono text-ink-soft hover:text-ink" aria-label="Copy wallet address">{shortG(wallet.address)}</button>
                 <span className="text-ink-faint">·</span>
                 <span className="font-semibold text-forest-deep">{usdc != null ? `${Number(usdc).toLocaleString(undefined, { maximumFractionDigits: 2 })} USDC` : '…'}</span>
               </div>
