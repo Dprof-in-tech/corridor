@@ -16,10 +16,14 @@ export async function runBridge(
   ss: StellarSigning,
   signAndSubmit: (unsignedXdr: string) => Promise<string>,
   onStage: (s: Stage, detail?: string) => void,
+  opts: { standing?: boolean } = {},
 ) {
-  let approveXdr = ss.approveXdr;
+  // `standing` swaps the exact-amount approve for a bounded standing allowance
+  // (~1,000 USDC / ~30 days to Circle's TokenMessenger) so later sends need
+  // one signature. Weave answers null when the allowance already suffices.
+  let approveXdr = opts.standing ? null : ss.approveXdr;
   if (!approveXdr) {
-    const r: ApiResult = await weave(ss.approveTxPath, { method: 'POST' });
+    const r: ApiResult = await weave(ss.approveTxPath, { method: 'POST', body: { standing: !!opts.standing } });
     if (!r.ok) throw new Error(r.error || 'Could not build the approval');
     approveXdr = r.data?.unsignedXdr ?? null;
   }

@@ -1,21 +1,17 @@
 import { NextRequest } from 'next/server';
-import { Redis } from '@upstash/redis';
+import { kvGet, kvSet } from '../../../lib/store';
 
 // Tiny handle → Stellar address directory so people can pay "@ada" instead of a
 // 56-character G-address. Upstash when configured, else process memory (dev).
 // Handles are claimed first-come; a claim must carry the SAME address to update.
 
-const mem = new Map<string, string>();
-const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
-  ? new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
-  : null;
 
 const norm = (h: string) => h.trim().toLowerCase().replace(/^@/, '');
 const isHandle = (h: string) => /^[a-z0-9_]{3,24}$/.test(h);
 const isG = (a: string) => /^G[A-Z2-7]{55}$/.test(a);
 
-async function get(h: string) { return redis ? (await redis.get<string>(`corridor:handle:${h}`)) ?? null : mem.get(h) ?? null; }
-async function set(h: string, a: string) { if (redis) await redis.set(`corridor:handle:${h}`, a); else mem.set(h, a); }
+const get = (h: string) => kvGet<string>(`corridor:handle:${h}`);
+const set = (h: string, a: string) => kvSet(`corridor:handle:${h}`, a);
 
 export async function GET(req: NextRequest) {
   const h = norm(new URL(req.url).searchParams.get('handle') ?? '');

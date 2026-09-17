@@ -13,6 +13,18 @@ export default function Landing() {
   const [busy, setBusy] = useState(false);
   useEffect(() => { if (isAuthenticated) router.replace('/app'); }, [isAuthenticated, router]);
 
+  // Pollar's OAuth flow finishes in the tab that STARTED it (it polls the
+  // session status); the popup tab just gets bounced back to our origin. The
+  // session lands in shared same-origin localStorage, so any of our tabs that
+  // sees it appear can simply move on to /app.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key && /pollar/i.test(e.key) && e.newValue) window.location.replace('/app');
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
   // Pollar reports failures on its auth state machine, not as thrown errors —
   // e.g. ORIGIN_NOT_ALLOWED when this origin isn't in the app's Domains list.
   useEffect(() => getClient().onAuthStateChange((st) => {

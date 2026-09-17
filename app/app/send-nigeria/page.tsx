@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePollar } from '@pollar/react';
 import { Shell, card, input, label, primary } from '../../../components/Shell';
-import { weave, pollOrder, bankMatches, fmtNgn, fmtUsdc, STELLAR_USDC, NGN, type Bank } from '../../../lib/weave';
-import { runBridge, type Stage } from '../../../lib/stellar-bridge';
+import { weave, bankMatches, fmtNgn, fmtUsdc, STELLAR_USDC, NGN, type Bank } from '../../../lib/weave';
+import { type Stage } from '../../../lib/stellar-bridge';
+import { createNigeriaSend, executeNigeriaSend } from '../../../lib/nigeria-send';
 
 // Send to a Nigerian bank: USDC leaves the Pollar wallet on Stellar, burns via
 // CCTP, mints on Base straight into a Paycrest offramp, naira lands in the bank.
@@ -26,6 +27,7 @@ export default function SendNigeria() {
   const [order, setOrder] = useState<any>(null);
   const [stage, setStage] = useState<Stage | 'quote' | null>(null);
   const [hash, setHash] = useState<string | null>(null);
+  const [standing, setStanding] = useState(false);
   const acctRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { weave('institutions?currency=NGN').then(r => r.ok && setBanks(r.data ?? [])); }, []);
@@ -58,27 +60,15 @@ export default function SendNigeria() {
     if (!wallet) return;
     setError(null); setMode('signing'); setStage('quote');
     try {
-      const r = await weave('orders', { body: {
-        source: { inline: { kind: 'crypto_wallet', assetKey: STELLAR_USDC, walletAddress: wallet.address } },
-        dest:   { inline: { kind: 'bank_account', assetKey: NGN, bankInstitution: bankCode, bankAccountIdentifier: acct, bankAccountName: acctName } },
-        amount: a, amountIn: 'source', refundAddress: wallet.address,
-      } });
-      if (!r.ok) throw new Error(r.error || 'Could not start the transfer');
-      const o = r.data.order; setOrder(o);
-      const na = r.data.nextAction;
-
-      if (na.screen === 'sign_stellar_tx') {
-        // Pollar signs (custodial: server-side; external wallet: in-extension) and submits.
-        const sign = async (xdr: string) => {
-          const out = await signAndSubmitTx(xdr);
-          if (out.status === 'error') throw new Error(out.details || out.message || 'Your wallet rejected the transaction');
-          return out.hash;
-        };
-        const h = await runBridge(na.stellarSigning, sign, (s) => setStage(s));
-        setHash(h);
-      }
-      setMode('settling');
-      const final = await pollOrder(o.id, setOrder);
+      const created = await createNigeriaSend(wallet.address, a, { bankCode, bankName: bankQuery, accountNumber: acct, accountName: acctName });
+      setOrder(created.order);
+      // Pollar signs (custodial: server-side; external wallet: in-extension) and submits.
+      const { order: final, hash: h } = await executeNigeriaSend(
+        created, signAndSubmitTx as any,
+        (s, d) => { setStage(s as any); if (s === 'done') { setHash(d ?? null); setMode('settling'); } },
+        setOrder, { standing },
+      );
+      setHash(h);
       setMode(final.status === 'completed' ? 'done' : 'error');
       if (final.status !== 'completed') setError(final.status === 'refunded' ? 'The transfer was refunded to your wallet.' : 'The transfer could not be completed.');
       void refreshWalletBalance();
@@ -120,9 +110,15 @@ export default function SendNigeria() {
               <div className={`mt-2 text-[13px] min-h-5 ${acctErr ? 'text-terracotta' : 'text-forest-deep font-semibold'}`}>{resolving ? <span className="text-ink-muted font-normal">Checking…</span> : acctName || acctErr}</div>
             </div>
           )}
+          {acctName && (
+            <label className="flex items-start gap-3 text-[13px] text-ink-soft cursor-pointer">
+              <input type="checkbox" checked={standing} onChange={e => setStanding(e.target.checked)} className="mt-0.5 accent-[#3D6B50]" />
+              <span><b>Approve future sends</b> — one bounded allowance (up to 1,000 USDC, ~30 days) to Circle's CCTP contract, so your next transfers need a single signature.</span>
+            </label>
+          )}
           {error && <p className="text-[13px] text-terracotta bg-terracotta-soft rounded-xl px-3 py-2">{error}</p>}
           <button disabled={!can} onClick={send} className={primary(can)}>{a ? `Send ${fmtUsdc(a)}` : 'Send'}</button>
-          <p className="text-[11.5px] text-ink-faint text-center">0.85% Weave + 0.25% bridge · ~3 min · you sign twice, nobody holds your funds</p>
+          <p className="text-[11.5px] text-ink-faint text-center">0.85% Weave + 0.25% bridge · ~3 min · non-custodial: USDC burns on Stellar, mints into the payout</p>
         </div>
       )}
 

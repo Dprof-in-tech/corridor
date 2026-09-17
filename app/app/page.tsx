@@ -64,6 +64,8 @@ export default function Home() {
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <Action href="/app/send-nigeria"    tag="Nigeria · out" title="Send to a Nigerian bank" sub="USDC → naira in ~3 minutes. Any bank, OPay, PalmPay, Moniepoint." />
         <Action href="/app/receive-nigeria" tag="Nigeria · in"  title="Add naira" sub="Pay by bank transfer from Nigeria; USDC lands in this wallet." />
+        <Action href="/app/bob-to-nigeria"  tag="Bolivia → Nigeria · chained" title="Pay a Nigerian bank in BOB" sub="Scan one BOB QR; naira lands in their bank. USDC never stops in between." />
+        <Action href="/app/request-naira"   tag="Nigeria → Bolivia · chained" title="Receive naira as BOB" sub="Share a link; a Nigerian pays by bank transfer, bolivianos land in your bank." />
         <Action onClick={() => openRampModal()} tag="Bolivia · Pollar" title="Cash out or top up in BOB" sub="Bank QR in, ACH out — Pollar's Bolivian ramp." />
         <Action href="/app/send-friend"     tag="Anywhere" title="Pay a friend" sub="Send USDC to an @handle or Stellar address. Instant, near-free." />
       </div>
