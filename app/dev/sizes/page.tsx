@@ -1,5 +1,7 @@
 'use client';
 
+import { notFound } from 'next/navigation';
+
 import { useEffect, useState } from 'react';
 
 // Dev-only responsive harness: the landing (or any path) rendered in iframes
@@ -11,6 +13,7 @@ const SIZES: Array<[string, number, number]> = [
 ];
 
 export default function Sizes() {
+  if (process.env.NODE_ENV === 'production') notFound();   // dev-only harness
   const [path, setPath] = useState('/?preview=1');
   const [vw, setVw] = useState(1200);
   useEffect(() => { const f = () => setVw(window.innerWidth); f(); window.addEventListener('resize', f); return () => window.removeEventListener('resize', f); }, []);

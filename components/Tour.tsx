@@ -59,11 +59,15 @@ export function Tour({ open, state, onClose }: { open: boolean; state: TourState
     const el = step.target ? document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`) : null;
     if (!el) { setRect(null); return; }
     el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    let raf = 0;
     setRadius(parseFloat(getComputedStyle(el).borderRadius) || 0);
-    const tick = () => { setRect(el.getBoundingClientRect()); raf = requestAnimationFrame(tick); };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    // Re-measure when the target or the page moves: layout changes, scroll
+    // (incl. the smooth scrollIntoView above), resize. No per-frame polling.
+    const measure = () => setRect(el.getBoundingClientRect());
+    measure();
+    const ro = new ResizeObserver(measure); ro.observe(el); ro.observe(document.body);
+    window.addEventListener('scroll', measure, { passive: true }); window.addEventListener('resize', measure);
+    const settle = setInterval(measure, 120); const stop = setTimeout(() => clearInterval(settle), 1200);   // while the smooth scroll runs
+    return () => { ro.disconnect(); window.removeEventListener('scroll', measure); window.removeEventListener('resize', measure); clearInterval(settle); clearTimeout(stop); };
   }, [open, i, step.target]);
 
   // Auto-advance once the person has done the step.

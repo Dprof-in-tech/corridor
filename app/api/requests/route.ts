@@ -1,47 +1,38 @@
 import { NextRequest } from 'next/server';
-import { randomBytes } from 'crypto';
-import { kvGet, kvSet } from '../../../lib/store';
+import { getSession, unauthorized } from '../../../lib/server/session';
+import { allow, tooMany } from '../../../lib/server/ratelimit';
+import { handleOf } from '../../../lib/server/directory';
+import { hashToken, isOwner, loadRequest, newId, newToken, ownerView, saveRequest, TTL_S, type NairaRequest } from '../../../lib/server/requests';
+import { kvSet } from '../../../lib/store';
 
-// A "naira request": a Bolivian user asks a Nigerian payer for ₦, to be
-// delivered as BOB. The requester's Pollar wallet is the Stellar leg; the
-// payer completes it from a public page (/r/[id]). Bank fields for the BOB
-// payout are stored so the requester's app can fire the offramp once USDC lands.
-
-export interface NairaRequest {
-  id: string;
-  requester: { address: string; handle: string | null };
-  bob: { amount: number; provider: string; rail: string; fields: Record<string, string> };
-  usdcNeeded: number;      // cryptoAmount Pollar quoted for the BOB payout, + buffer
-  ngnAmount: number;       // what the payer must transfer
-  orderId: string | null;  // Weave NGN → Stellar order once the payer starts
-  status: 'open' | 'paying' | 'funded' | 'cashed_out' | 'expired';
-  offrampTxId: string | null;
-  createdAt: string;
-}
-
-const KEY = (id: string) => `corridor:req:${id}`;
-const TTL = 7 * 24 * 3600;
-
+// POST — create a request (requires a wallet session; the requester IS the
+// session wallet, and the handle is whatever that wallet has claimed).
 export async function POST(req: NextRequest) {
+  const s = await getSession();
+  if (!s) return unauthorized();
+  if (!(await allow(`req-create:${s.address}`, 10, 3600))) return tooMany();
   const b = await req.json().catch(() => ({}));
-  const address = String(b.address ?? '');
-  if (!/^G[A-Z2-7]{55}$/.test(address)) return Response.json({ success: false, error: 'invalid Stellar address' }, { status: 400 });
   const bobAmount = Number(b.bobAmount), usdcNeeded = Number(b.usdcNeeded), ngnAmount = Number(b.ngnAmount);
-  if (![bobAmount, usdcNeeded, ngnAmount].every(n => Number.isFinite(n) && n > 0)) return Response.json({ success: false, error: 'invalid amounts' }, { status: 400 });
+  if (![bobAmount, usdcNeeded, ngnAmount].every(n => Number.isFinite(n) && n > 0 && n < 1e9)) return Response.json({ success: false, error: 'invalid amounts' }, { status: 400 });
   const fields: Record<string, string> = {};
   for (const [k, v] of Object.entries(b.fields ?? {})) if (typeof v === 'string' && k.length <= 40 && v.length <= 200) fields[k] = v;
+  const token = newToken();
   const r: NairaRequest = {
-    id: randomBytes(6).toString('base64url'),
-    requester: { address, handle: typeof b.handle === 'string' ? b.handle.slice(0, 24) : null },
-    bob: { amount: bobAmount, provider: String(b.provider ?? ''), rail: String(b.rail ?? ''), fields },
-    usdcNeeded, ngnAmount, orderId: null, status: 'open', offrampTxId: null, createdAt: new Date().toISOString(),
+    id: newId(), network: s.network,
+    requester: { address: s.address, handle: (await handleOf(s.address)) ?? null },
+    bob: { amount: bobAmount, provider: String(b.provider ?? '').slice(0, 80), rail: String(b.rail ?? '').slice(0, 40), fields },
+    usdcNeeded, ngnAmount, orderId: null, bankDetails: null, status: 'open', offrampTxId: null,
+    ownerTokenHash: hashToken(token), createdAt: new Date().toISOString(),
   };
-  await kvSet(KEY(r.id), r, TTL);
-  return Response.json({ success: true, data: r });
+  await kvSet(`corridor:req:${r.id}`, r, TTL_S);
+  return Response.json({ success: true, data: { ...ownerView(r), ownerToken: token } });
 }
 
+// GET ?id= — the OWNER's view (needs the owner token).
 export async function GET(req: NextRequest) {
   const id = new URL(req.url).searchParams.get('id') ?? '';
-  const r = await kvGet<NairaRequest>(KEY(id));
-  return r ? Response.json({ success: true, data: r }) : Response.json({ success: false, error: 'not found' }, { status: 404 });
+  const r = await loadRequest(id);
+  if (!r) return Response.json({ success: false, error: 'not found' }, { status: 404 });
+  if (!isOwner(r, req.headers.get('x-owner-token'))) return unauthorized('Not your request.');
+  return Response.json({ success: true, data: ownerView(r) });
 }

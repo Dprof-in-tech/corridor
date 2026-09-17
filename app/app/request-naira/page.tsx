@@ -25,6 +25,7 @@ export default function RequestNaira() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [offramp, setOfframp] = useState<OffRampResult | null>(null);
+  const [ownerToken, setOwnerToken] = useState<string | null>(null);
 
   // Quote both legs from the BOB amount.
   useEffect(() => {
@@ -50,13 +51,15 @@ export default function RequestNaira() {
   async function create() {
     if (!wallet || !quote || !ngn) return;
     setBusy(true); setError(null);
-    let handle: string | null = null; try { handle = localStorage.getItem('corridor.handle'); } catch {}
     const r = await fetch('/api/requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-      address: wallet.address, handle, bobAmount: Number(bobAmount), usdcNeeded: quote.usdc * 1.005, ngnAmount: ngn,
+      bobAmount: Number(bobAmount), usdcNeeded: quote.usdc * 1.005, ngnAmount: ngn,
       provider: quote.quote.provider, rail: quote.quote.rail, fields,
     }) }).then(r => r.json());
     setBusy(false);
     if (!r.success) { setError(r.error); return; }
+    // The owner token is the only way to read or update this request later.
+    try { localStorage.setItem(`corridor.req.${r.data.id}`, r.data.ownerToken); } catch {}
+    setOwnerToken(r.data.ownerToken);
     setReq(r.data);
   }
 
@@ -67,7 +70,7 @@ export default function RequestNaira() {
     const tick = async () => {
       if (stopped) return;
       try {
-        const rr = await fetch(`/api/requests?id=${req.id}`).then(r => r.json());
+        const rr = await fetch(`/api/requests?id=${req.id}`, { headers: { 'x-owner-token': ownerToken ?? '' } }).then(r => r.json());
         if (rr.success) setReq(rr.data);
         const cur: Req = rr.data ?? req;
         if (cur.orderId) {
@@ -75,7 +78,9 @@ export default function RequestNaira() {
           if (o.ok) setOrder(o.data);
           if (o.ok && o.data.status === 'completed' && cur.status !== 'cashed_out' && !offramp) {
             stopped = true;
-            await cashOut(cur, Number(o.data.destAmount));
+            const landed = Number(o.data.destAmount);
+            if (!(landed > 0)) { setError('The order completed but no USDC was recorded as delivered — nothing was paid out. Check your wallet history.'); return; }
+            await cashOut(cur, landed);
             return;
           }
         }
@@ -97,7 +102,7 @@ export default function RequestNaira() {
       if (need > usdcLanded * 1.0001) throw new Error(`${fmtUsdc(usdcLanded)} arrived but the payout now needs ${fmtUsdc(need)}. Cash out manually from the ramp menu.`);
       const out = await startOffRamp(getClient(), q, cur.bob.amount, wallet.address, cur.bob.fields);
       setOfframp(out);
-      await fetch(`/api/requests/${cur.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: out.kycUrl ? 'funded' : 'cashed_out', offrampTxId: out.txId }) });
+      await fetch(`/api/requests/${cur.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-owner-token': ownerToken ?? '' }, body: JSON.stringify({ status: out.kycUrl ? 'funded' : 'cashed_out', offrampTxId: out.txId }) });
       void refreshWalletBalance();
     } catch (e: any) { setError(e.message); }
     finally { setBusy(false); }

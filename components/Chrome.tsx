@@ -7,6 +7,7 @@ import { usePollar } from '@pollar/react';
 import { Coins, DashboardArches, Logo } from './Brand';
 import { useNetwork, setNetwork } from '../lib/network';
 import { TOUR_EVENT } from './Tour';
+import { ensureWalletSession, endWalletSession } from '../lib/session-client';
 
 // Authenticated frame per the design handoff "Dashboard v3": coin backdrop,
 // fixed arches bottom-right, header with TEST MODE pill / History / Sign out,
@@ -19,9 +20,11 @@ function hasStoredSession(): boolean {
 }
 
 export function Chrome({ children, back }: { children: React.ReactNode; back?: string }) {
-  const { isAuthenticated, logout, openTxHistoryModal, getClient } = usePollar();
+  const { isAuthenticated, logout, openTxHistoryModal, getClient, wallet } = usePollar();
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  const [proved, setProved] = useState(false);       // Corridor's own session (signed challenge)
+  const [proveError, setProveError] = useState<string | null>(null);
   const [noticeOpen, setNoticeOpen] = useState(true);
   const network = useNetwork();
   const IS_TESTNET = network === 'testnet';
@@ -40,15 +43,36 @@ export function Chrome({ children, back }: { children: React.ReactNode; back?: s
     return () => { live = false; clearTimeout(cap); };
   }, [getClient, router]);  // eslint-disable-line react-hooks/exhaustive-deps — runs once per mount
   useEffect(() => { if (ready && !isAuthenticated) router.replace('/'); }, [ready, isAuthenticated, router]);
+  // Once Pollar says who we are, prove it to our own server: the wallet signs a
+  // one-time challenge and gets an httpOnly session the proxy requires.
+  const address = wallet?.address ?? null;
+  useEffect(() => {
+    if (!ready || !isAuthenticated || !address) return;
+    let live = true;
+    setProveError(null);
+    ensureWalletSession(getClient(), address, network).then(() => live && setProved(true)).catch(e => { if (live) { setProved(false); setProveError(e?.message ?? 'Wallet verification failed'); } });
+    return () => { live = false; };
+  }, [ready, isAuthenticated, address, network, getClient]);   // keyed on the address, not the wallet object, so balance refreshes never remount the page
   useEffect(() => { try { setNoticeOpen(localStorage.getItem('corridor.notice') !== 'hidden'); } catch {} }, []);
   const toggleNotice = () => setNoticeOpen(v => { try { localStorage.setItem('corridor.notice', v ? 'hidden' : 'shown'); } catch {} return !v; });
 
-  if (!ready || !isAuthenticated) {
+  if (!ready || !isAuthenticated || !proved) {
     return (
-      <div style={{ minHeight: '100vh', background: '#F3EDE0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100vh', background: '#F3EDE0', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        {proveError ? (
+          <div style={{ maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ font: '400 32px/1.1 var(--font-display)', color: '#2F4A3B' }}>We couldn’t verify this wallet.</div>
+            <div style={{ font: '14px/1.5 var(--font-body)', color: '#5E6058' }}>{proveError}</div>
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+              <button className="cta" onClick={() => { setProveError(null); ensureWalletSession(getClient(), address!, network).then(() => setProved(true)).catch(e => setProveError(e?.message ?? 'Wallet verification failed')); }} style={{ height: 44, padding: '0 20px', fontSize: 14 }}>Try again</button>
+              <button onClick={() => { void endWalletSession(); logout(); }} style={{ border: 0, background: 'transparent', font: '14px var(--font-body)', color: '#8A8A80', cursor: 'pointer' }}>Sign out</button>
+            </div>
+          </div>
+        ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, font: 'italic 22px var(--font-display)', color: '#8A8A80' }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#4F7A5C', animation: 'tour-pulse 1.4s ease-in-out infinite' }} />Opening your wallet…
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#4F7A5C', animation: 'tour-pulse 1.4s ease-in-out infinite' }} />{ready && isAuthenticated ? 'Confirming it’s your wallet…' : 'Opening your wallet…'}
         </div>
+        )}
         <style>{`@keyframes tour-pulse { 0%,100% { transform: scale(1); opacity: 1 } 50% { transform: scale(1.6); opacity: .5 } }`}</style>
       </div>
     );
@@ -72,7 +96,7 @@ export function Chrome({ children, back }: { children: React.ReactNode; back?: s
           </button>
           {IS_TESTNET && <button onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))} className="chrome-btn" title="Show me around" aria-label="Show me around" style={{ width: 34, height: 34, borderRadius: 17, border: 0, background: 'transparent', color: '#2F4A3B', font: 'italic 18px var(--font-display)', cursor: 'pointer' }}>?</button>}
           <button onClick={() => openTxHistoryModal()} className="chrome-btn" style={{ height: 34, padding: '0 14px', borderRadius: 17, border: 0, background: 'transparent', color: '#2F4A3B', fontSize: 13, cursor: 'pointer' }}>History</button>
-          <button onClick={() => logout()} className="chrome-btn" style={{ height: 34, padding: '0 14px', borderRadius: 17, border: 0, background: 'transparent', color: '#5E6058', fontSize: 13, cursor: 'pointer' }}>Sign out</button>
+          <button onClick={() => { void endWalletSession(); logout(); }} className="chrome-btn" style={{ height: 34, padding: '0 14px', borderRadius: 17, border: 0, background: 'transparent', color: '#5E6058', fontSize: 13, cursor: 'pointer' }}>Sign out</button>
         </div>
       </header>
 

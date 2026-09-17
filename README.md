@@ -111,16 +111,23 @@ holds the Weave secret key.
 
 ## Testnet vs. mainnet — network follows credentials
 
-There is no "mainnet mode" flag. Exactly like Weave's own sandbox / live
-environments for merchants, the switch in the header picks a **credential
-pair** — Pollar's publishable key and Weave's secret key for that environment —
-and everything else derives from it: the USDC issuer, the explorer, the real
-bridge instead of a simulator, the real BOB ramp instead of a mock.
+Exactly like Weave's own sandbox / live environments for merchants, the switch
+in the header picks a **credential pair** — Pollar's publishable key and Weave's
+secret key for that environment — and everything else derives from it: the
+USDC issuer, the explorer, the real bridge instead of a simulator, the real BOB
+ramp instead of a mock.
+
+**Mainnet is gated off in this build.** `MAINNET_LIVE = false` in
+`app/providers.tsx` keeps the testnet Pollar client mounted and the mainnet side
+of the switch renders *Coming soon* with a link to the proof page. Flipping that
+constant (with the mainnet keys set) is the only change needed to route the
+switch to live credentials; the mainnet code paths — the two-signature
+LI.FI/CCTP bridge, the $2 floor, the XDR checks before signing — are in this
+repo but are exercised through Weave's SEP-24 pages today, not through this UI.
 
 The hosted demo runs on **testnet**, as the Pollar team asked for hackathon
-builds, with clearly-labelled stand-ins. Mainnet is not switched on in the app
-yet (the switch shows *Coming soon* and links to the proof page), but the
-Nigerian leg has already run on mainnet: 2 USDC from a personal Stellar wallet
+builds, with clearly-labelled stand-ins. The Nigerian leg has already run on
+mainnet: 2 USDC from a personal Stellar wallet
 became ₦2,698.94 in a PalmPay account in 1 min 23 s
 ([Stellar tx](https://stellar.expert/explorer/public/tx/3b04306949879f24384c0b2ccc50c1209a121cb531a5b238e372818f0c8a5b48) ·
 [Base tx](https://basescan.org/tx/0x2eed4f577d75c19f028f86d770ff1d15e634453b8cd4359ee706245cb89dc701)).
@@ -154,9 +161,25 @@ Weave — api.paywithweave.com (private monorepo, hosted)
  └─ sandbox/stellar-faucet · sandbox/stellar-simulator                  ← sandbox keys only
 ```
 
-The browser never sees a Weave secret. `app/api/weave/[...path]/route.ts` only
-forwards the paths listed below, attaches `x-secret-key` for the network the
-client says it is on, and refuses `sandbox/*` on mainnet.
+The browser never sees a Weave secret, and it never calls Weave anonymously.
+`app/api/weave/[...path]/route.ts` requires a **Corridor wallet session** —
+after Pollar sign-in the wallet signs a one-time SEP-53 challenge
+(`/api/auth/challenge` → `/api/auth/verify`) and receives an httpOnly,
+SameSite=Strict cookie bound to its address and network. The proxy then:
+
+- forwards only the allow-listed paths below, with the key for the *session's*
+  network (not a client header);
+- refuses an order whose source wallet or refund address is not the session
+  wallet;
+- rate-limits per wallet, tightest on bank-name lookups (20/min) and the
+  sandbox faucet (5/day);
+- refuses `sandbox/*` outside testnet.
+
+Handles can only be claimed for the session's own wallet (reserved names
+blocked). Request links are owner-tokened: the server creates the Weave order
+itself with the destination fixed to the requester's stored wallet, the payer
+page only ever posts the payer's own bank details, the public view carries no
+bank fields, and status moves forward only.
 
 ## The Weave API endpoints Corridor uses
 
@@ -175,6 +198,10 @@ Base: `https://api.paywithweave.com/api/v1`. Auth: `x-secret-key: sk_test_…`
 | `POST /orders/:id/steps/:seq/submitted` `{ txHash }` | Mainnet: tell Weave the payer submitted the bridge tx |
 | `POST /sandbox/stellar-faucet` `{ to, amount ≤ 50 }` | Sandbox only: drop testnet USDC into a wallet (used to settle the mocked BOB on-ramp) |
 | `GET /sandbox/stellar-simulator` | Sandbox only: the simulator's address / balance |
+
+All of these go through the session-gated proxy; the payer page's two calls
+(bank list, name lookup for an open request) go through their own
+rate-limited routes instead.
 
 Asset keys are `fiat:<CCY>` or `crypto:<CHAIN>:<TOKEN>`, e.g. `fiat:NGN`,
 `crypto:STELLAR:USDC`.
@@ -238,7 +265,8 @@ pnpm dev                       # http://localhost:3006
 | `WEAVE_API_BASE` | `https://api.paywithweave.com/api/v1` |
 | `WEAVE_SECRET_KEY` | A Weave **sandbox** secret key (`sk_test_…`). Sign up at [paywithweave.com](https://paywithweave.com); keys are under Settings → API keys. |
 | `WEAVE_SECRET_KEY_LIVE` | A Weave **live** secret key (`sk_live_…`). Optional until mainnet is switched on. |
-| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Optional. @handles and request links fall back to process memory without them. |
+| `CORRIDOR_SESSION_SECRET` | HMAC secret for the wallet-session cookie and challenges. Falls back to a hash of the Weave key; set a dedicated value in production. |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Strongly recommended on any real deployment: @handles, request links and rate limits live here. Without them the fallback is process memory, which is per instance on a serverless host. |
 
 A `/dev/sizes` page renders any route in six viewports side by side for
 responsive checks.
@@ -266,9 +294,15 @@ needed: the Weave API and the Stellar anchor are hosted by Weave at
   On mainnet the payer signs a Soroban allowance and the LI.FI bridge call;
   Circle CCTP burns on Stellar and mints on Base directly to the payout
   provider, which pays out within seconds.
-- **Secrets stay server-side.** The Weave secret key lives only in the proxy
-  route's environment; the browser calls `/api/weave/*`, which forwards an
+- **Secrets stay server-side, and every call is attributed.** The Weave secret
+  key lives only in the proxy route's environment; the browser calls
+  `/api/weave/*` with a wallet-bound session cookie, and the proxy forwards an
   allow-list of paths and nothing else.
+- **The client checks what it signs.** The sandbox payment must match the
+  amount the user typed; on mainnet every XDR is decoded before signing and
+  must be exactly one Soroban call from the user's account to the USDC
+  contract (`approve`, spender = Circle's TokenMessenger) or the LI.FI bridge
+  (`lib/xdr-guard.ts`). Anything else is refused, whatever the server said.
 - **Sandbox can't touch live.** The simulator refuses anything that isn't a
   sandbox order on testnet; `sandbox/*` paths are refused when the client is
   on mainnet.

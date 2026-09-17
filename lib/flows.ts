@@ -18,7 +18,7 @@ import { bestQuote, usdcFromBobOnramp, bobFromUsdcOfframp, startOnRamp, startOff
 export type To = 'ng' | 'bo' | 'fr';
 export type From = 'bal' | 'ngn' | 'bob';
 
-export interface NgDetails extends NigeriaRecipient {}
+export type NgDetails = NigeriaRecipient;
 export interface BoDetails { fields: Record<string, string>; quote: RampQuote }
 export interface FrDetails { address: string; handle: string | null }
 export interface PayerBank { bankCode: string; accountNumber: string; accountName: string }  // refund account for naira transfers
@@ -134,6 +134,7 @@ export async function runFlow(input: FlowInput, client: PollarClient, signer: Po
       const before = await usdcBalance();
       const dep = await depositNaira(amount, wallet);
       const landed = await waitForUsdc(before, Number(dep.destAmount));
+      if (!(landed > 0)) throw new Error('The naira deposit completed but no USDC has reached your wallet yet — nothing was paid out. Try the Bolivian payout again in a minute.');
       const { bob } = await bobFromUsdcOfframp(client, landed);
       const out = await offrampBob(bob, input.bo);
       return { headline: 'Bolivianos on the way', detail: `₦${amount.toLocaleString()} → Bs ${bob.toFixed(2)} to your bank`, mocked: !!out.mocked };

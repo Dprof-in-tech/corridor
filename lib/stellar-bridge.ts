@@ -21,13 +21,15 @@ export async function runBridge(
   // `standing` swaps the exact-amount approve for a bounded standing allowance
   // (~1,000 USDC / ~30 days to Circle's TokenMessenger) so later sends need
   // one signature. Weave answers null when the allowance already suffices.
+  // The XDR decoder pulls in the Stellar SDK; only the mainnet path needs it.
+  const { assertExpectedTx } = await import('./xdr-guard');
   let approveXdr = opts.standing ? null : ss.approveXdr;
   if (!approveXdr) {
     const r: ApiResult = await weave(ss.approveTxPath, { method: 'POST', body: { standing: !!opts.standing } });
     if (!r.ok) throw new Error(r.error || 'Could not build the approval');
     approveXdr = r.data?.unsignedXdr ?? null;
   }
-  if (approveXdr) { onStage('approve'); await signAndSubmit(approveXdr); }
+  if (approveXdr) { assertExpectedTx(approveXdr, { kind: 'approve', from: ss.fromAddress }); onStage('approve'); await signAndSubmit(approveXdr); }
 
   onStage('bridge');
   let bridgeXdr: string | null = null;
@@ -38,6 +40,7 @@ export async function runBridge(
     else throw new Error(r.error || 'Could not build the bridge transaction');
   }
   if (!bridgeXdr) throw new Error('Approval not confirmed yet — please try again.');
+  assertExpectedTx(bridgeXdr, { kind: 'bridge', from: ss.fromAddress });
   const hash = await signAndSubmit(bridgeXdr);
   onStage('submitting', hash);
   const rep = await weave(ss.submittedPath, { method: 'POST', body: { txHash: hash } });
