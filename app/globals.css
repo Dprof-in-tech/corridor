@@ -1,0 +1,15 @@
+@import "tailwindcss";
+@import "@weave/ui/theme.css";
+
+html, body { background: var(--color-cream); }
+body {
+  font-family: var(--font-body);
+  color: var(--color-ink);
+  background:
+    radial-gradient(circle at 10% 0%, rgba(61, 107, 80, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 95% 100%, rgba(184, 147, 90, 0.08) 0%, transparent 40%),
+    var(--color-cream);
+  background-attachment: fixed;
+}
+@keyframes reveal { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
+.reveal { animation: reveal .28s ease }
