@@ -12,6 +12,12 @@ import { TOUR_EVENT } from './Tour';
 // fixed arches bottom-right, header with TEST MODE pill / History / Sign out,
 // collapsible test notice, 1120px content column.
 
+/** Does this browser hold a Pollar session at all? Synchronous, no SDK needed. */
+function hasStoredSession(): boolean {
+  try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i) ?? ''; if (/^pollar:.*:session$/.test(k) && localStorage.getItem(k)) return true; } } catch {}
+  return false;
+}
+
 export function Chrome({ children, back }: { children: React.ReactNode; back?: string }) {
   const { isAuthenticated, logout, openTxHistoryModal, getClient } = usePollar();
   const router = useRouter();
@@ -20,10 +26,33 @@ export function Chrome({ children, back }: { children: React.ReactNode; back?: s
   const network = useNetwork();
   const IS_TESTNET = network === 'testnet';
 
-  useEffect(() => { let live = true; getClient().ready().then(() => live && setReady(true)).catch(() => live && setReady(true)); return () => { live = false; }; }, [getClient]);
+  // Auth gate. Pollar's isAuthenticated is false for a moment on a hard load
+  // while the SDK restores a persisted session, so we cannot bounce on it
+  // alone — but ready() does real work (key manager, session restore, maybe a
+  // token refresh), so we only wait for it when there IS a session to restore.
+  // No stored session → straight back to the landing, no waiting.
+  useEffect(() => {
+    if (!hasStoredSession() && !isAuthenticated) { router.replace('/'); return; }   // (memory-only sessions stay authenticated in-tab)
+    let live = true;
+    const done = () => live && setReady(true);
+    getClient().ready().then(done).catch(done);
+    const cap = setTimeout(done, 4000);           // never hang on a slow restore
+    return () => { live = false; clearTimeout(cap); };
+  }, [getClient, router]);  // eslint-disable-line react-hooks/exhaustive-deps — runs once per mount
   useEffect(() => { if (ready && !isAuthenticated) router.replace('/'); }, [ready, isAuthenticated, router]);
   useEffect(() => { try { setNoticeOpen(localStorage.getItem('corridor.notice') !== 'hidden'); } catch {} }, []);
   const toggleNotice = () => setNoticeOpen(v => { try { localStorage.setItem('corridor.notice', v ? 'hidden' : 'shown'); } catch {} return !v; });
+
+  if (!ready || !isAuthenticated) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#F3EDE0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, font: 'italic 22px var(--font-display)', color: '#8A8A80' }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#4F7A5C', animation: 'tour-pulse 1.4s ease-in-out infinite' }} />Opening your wallet…
+        </div>
+        <style>{`@keyframes tour-pulse { 0%,100% { transform: scale(1); opacity: 1 } 50% { transform: scale(1.6); opacity: .5 } }`}</style>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#F3EDE0', position: 'relative', overflow: 'hidden' }}>
