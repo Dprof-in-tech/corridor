@@ -1,8 +1,8 @@
 'use client';
 
-// "Continue with Google" per Google's sign-in branding guidelines: official
-// four-colour G mark, white surface, #747775 1px border, Roboto Medium 14px,
-// 40px height, 12px horizontal padding, no recolouring of the mark.
+// "Continue with Google" — the design's 48px ink-outlined pill (fills ink on
+// hover) carrying Google's OFFICIAL four-colour G mark, un-recoloured, with
+// Roboto Medium 14px per Google's branding guidelines for the label.
 // https://developers.google.com/identity/branding-guidelines
 export function GoogleButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
   return (
@@ -10,8 +10,10 @@ export function GoogleButton({ onClick, disabled }: { onClick: () => void; disab
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="w-full h-10 rounded-full border border-[#747775] bg-white text-[#1f1f1f] flex items-center justify-center gap-3 px-3 hover:bg-[#f8f9fa] disabled:opacity-50"
-      style={{ fontFamily: 'var(--font-roboto), Roboto, "Helvetica Neue", Arial, sans-serif', fontWeight: 500, fontSize: 14, letterSpacing: 0.25 }}
+      className="google-btn"
+      style={{ height: 48, width: '100%', border: '1px solid #2F4A3B', background: 'transparent', borderRadius: 24, color: '#2F4A3B', cursor: disabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontFamily: 'var(--font-roboto), Roboto, "Helvetica Neue", Arial, sans-serif', fontWeight: 500, fontSize: 14, letterSpacing: 0.25, opacity: disabled ? 0.5 : 1, transition: 'background .15s, color .15s' }}
+      onMouseEnter={e => { e.currentTarget.style.background = '#2F4A3B'; e.currentTarget.style.color = '#F3EDE0'; }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#2F4A3B'; }}
     >
       <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
         <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />

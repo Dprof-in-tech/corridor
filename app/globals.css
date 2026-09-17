@@ -1,25 +1,69 @@
 @import "tailwindcss";
 @import "@weave/ui/theme.css";
 
-html, body { background: var(--color-cream); }
-body {
-  font-family: var(--font-body);
-  color: var(--color-ink);
-  background:
-    radial-gradient(circle at 10% 0%, rgba(61, 107, 80, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 95% 100%, rgba(184, 147, 90, 0.08) 0%, transparent 40%),
-    var(--color-cream);
-  background-attachment: fixed;
+/* ── Corridor design tokens (design handoff, high fidelity) ─────────────────
+   Overrides the shared Weave palette names so sub-pages built on them pick up
+   the new look automatically. */
+@theme {
+  --font-display: var(--font-instrument), "Instrument Serif", Georgia, serif;
+  --font-body: var(--font-plex), "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-cream: #F3EDE0;
+  --color-cream-soft: #FBF8F2;
+  --color-cream-deep: #E9E2D2;
+  --color-ink: #2F4A3B;
+  --color-ink-soft: #2F4A3B;
+  --color-ink-muted: #5E6058;
+  --color-ink-faint: #8A8A80;
+  --color-forest: #4F7A5C;
+  --color-forest-deep: #2F4A3B;
+  --color-forest-light: #B8C7BA;
+  --color-forest-mist: #E7EEE8;
+  --color-sage: #B8C7BA;
+  --color-hair: #D9D2C2;
+  --color-hair-soft: #E6E0D0;
+  --color-tan-deep: #4F7A5C;
+  --color-tan-mist: #FBF8F2;
+  --color-terracotta: #A8321E;
+  --color-terracotta-soft: #F6E1DC;
 }
+
+html, body { background: var(--color-cream); }
+body { font-family: var(--font-body); color: var(--color-ink); }
+button, input, select, textarea { font-family: inherit; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
+.rise { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
 @keyframes reveal { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
 .reveal { animation: reveal .28s ease }
 
-/* Focus lives on the field WRAPPER (focus-within), never on the raw input —
-   the browser's default ring inside a styled pill looks like a double border. */
+/* Focus lives on the field wrapper, never the raw input. */
 input, select, textarea, button { outline: none; }
 input:focus-visible, select:focus-visible, textarea:focus-visible { outline: none; box-shadow: none; }
-.field { border: 1px solid var(--color-hair); background: #fff; border-radius: 1rem; transition: border-color .15s, box-shadow .15s; }
-.field:focus-within { border-color: var(--color-forest); box-shadow: 0 0 0 3px rgba(61, 107, 80, 0.14); }
+.field { border: 1px solid var(--color-hair); background: #fff; border-radius: 24px; transition: border-color .15s, box-shadow .15s; }
+.field:focus-within { border-color: var(--color-ink); box-shadow: 0 0 0 3px rgba(47,74,59,.10); }
 
-/* Pollar modals mount inside our layout; make sure they sit above the sticky header. */
+/* Conversational pills (dashboard) */
+.pill { display: inline-flex; align-items: center; gap: 10px; height: 48px; padding: 0 20px; border-radius: 24px; border: 1px solid var(--color-sage); background: var(--color-cream); color: var(--color-ink); font-family: var(--font-display); font-style: italic; font-size: 22px; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
+.pill:hover:not(:disabled) { border-color: var(--color-ink); }
+.pill[data-on="true"] { background: var(--color-ink); border-color: var(--color-ink); color: var(--color-cream); }
+.pill:disabled { opacity: .35; cursor: not-allowed; }
+.prose-step { font-family: var(--font-display); font-weight: 400; font-size: 44px; line-height: 1.15; color: var(--color-ink); text-wrap: balance; }
+.inline-input { border: 0; background: transparent; font-family: var(--font-display); font-size: 56px; line-height: 1; color: var(--color-ink); padding: 0; }
+.link-serif { border: 0; background: transparent; padding: 0; font-family: var(--font-display); font-style: italic; font-size: 22px; color: var(--color-ink); cursor: pointer; border-bottom: 1px solid var(--color-ink); }
+.link-serif:hover { color: var(--color-forest); }
+.cta { height: 56px; padding: 0 32px; border-radius: 28px; border: 0; background: var(--color-ink); color: var(--color-cream); font-size: 16px; cursor: pointer; transition: background .15s; }
+.cta:hover:not(:disabled) { background: var(--color-forest); }
+.cta:disabled { opacity: .45; cursor: not-allowed; }
+.mono-eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-forest); }
+
+/* Pollar modals mount inside our layout; keep them above the header and fixed shapes. */
 .pollar-overlay { z-index: 1000; }
+/* Pollar's modal chrome, tinted to our palette */
+.pollar-modal-card { font-family: var(--font-body); }
+@media (max-width: 720px) {
+  .prose-step { font-size: 32px; }
+  .pill { height: 42px; font-size: 18px; padding: 0 16px; }
+  .inline-input { font-size: 40px; }
+}
