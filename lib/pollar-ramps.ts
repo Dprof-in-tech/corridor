@@ -48,13 +48,18 @@ export async function bestQuote(client: PollarClient, direction: 'onramp' | 'off
   return q;
 }
 async function fetchQuote(client: PollarClient, direction: 'onramp' | 'offramp', amountFiat: number): Promise<RampQuote> {
+  let quotes: RampQuote[] = [];
   try {
-    const { quotes } = await client.getRampsQuote({ ...BO, direction, amount: amountFiat });
-    const q = (quotes as RampQuote[]).find(x => x.recommended) ?? (quotes as RampQuote[])[0];
-    if (q) return q;
-  } catch { /* fall through to the mock on testnet */ }
+    quotes = (await client.getRampsQuote({ ...BO, direction, amount: amountFiat })).quotes as RampQuote[];
+  } catch (e) {
+    if (isTestnet()) return mockQuote(direction, amountFiat);
+    // Auth not ready / network blip: the caller should treat this as "unknown", not "no provider".
+    throw Object.assign(new Error('Could not reach the ramp service — try again in a moment.'), { transient: true, cause: e });
+  }
+  const q = quotes.find(x => x.recommended) ?? quotes[0];
+  if (q) return q;
   if (isTestnet()) return mockQuote(direction, amountFiat);
-  throw new Error('No Bolivian ramp is enabled for this Pollar app. Enable Stereum (BOB · QR in / ACH out) under Integrations → Ramps on a mainnet app — the Pollar team can switch it on.');
+  throw Object.assign(new Error('No Bolivian ramp is enabled for this Pollar app. Enable Stereum (BOB · QR in / ACH out) under Integrations → Ramps — the Pollar team can switch it on.'), { notEnabled: true });
 }
 
 /** BOB that `usdc` pays out to a Bolivian bank (off-ramp), net of the provider fee. */

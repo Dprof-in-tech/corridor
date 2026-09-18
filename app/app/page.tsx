@@ -46,7 +46,7 @@ const Typeahead = ({ q, setQ, pick, picked, options, placeholder }: { q: string;
 );
 
 export default function Dashboard() {
-  const { wallet, walletBalance, refreshWalletBalance, signAndSubmitTx, runTx, getClient } = usePollar();
+  const { wallet, walletBalance, refreshWalletBalance, signAndSubmitTx, runTx, getClient, isAuthenticated } = usePollar();
   const IS_TESTNET = useNetwork() === 'testnet';
   const bal = walletBalance.step === 'loaded' ? Number(walletBalance.data.balances.find(b => b.code === 'USDC')?.balance ?? 0) : null;
 
@@ -73,8 +73,14 @@ export default function Dashboard() {
     weave(`quotes?from=${STELLAR_USDC}&to=${NGN}&amount=1&amountIn=source`).then(r => { if (r.ok && r.data?.estimatedDest) setNgnPerUsd(Number(r.data.estimatedDest)); });
     // Deposit direction: on mainnet this depends on NEAR Intents quoting Base → Stellar USDC today.
     if (!IS_TESTNET) weave(`quotes?from=${NGN}&to=${STELLAR_USDC}&amount=5000&amountIn=source`).then(r => setNgnInAvailable(!!(r.ok && r.data?.estimatedDest)));
-    bestQuote(getClient(), 'offramp', 100).then(q => { setBobPerUsd(Number(q.rate)); setBoAvailable(true); }).catch(() => setBoAvailable(false));
-  }, [getClient]);
+    if (!isAuthenticated) return;
+    let live = true;
+    const probe = (attempt: number) => bestQuote(getClient(), 'offramp', 100)
+      .then(q => { if (!live) return; setBobPerUsd(Number(q.rate)); setBoAvailable(true); })
+      .catch((e: any) => { if (!live) return; if (e?.notEnabled) setBoAvailable(false); else if (attempt < 2) setTimeout(() => probe(attempt + 1), 4000); });
+    probe(0);
+    return () => { live = false; };
+  }, [getClient, isAuthenticated]);
 
   // ── handle ─────────────────────────────────────────────────────────────
   const [handle, setHandle] = useState<string | null>(null);
@@ -247,7 +253,7 @@ export default function Dashboard() {
             <span>at</span>
             {!boQuote ? <span style={{ font: 'italic 22px var(--font-display)', color: '#8A8A80' }}>loading Bolivian banks…</span> : (boQuote.requiredFields ?? []).map((f: any) => f.type === 'select' ? (
               <select key={f.key} value={boFields[f.key] ?? ''} onChange={e => setBoFields({ ...boFields, [f.key]: e.target.value })} style={{ border: 0, borderBottom: '1px solid #2F4A3B', background: 'transparent', font: 'italic 28px var(--font-display)', color: '#2F4A3B' }}>
-                <option value="">{f.label}</option>{(f.options ?? []).map((o: any) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                <option value="">{f.label}</option>{(f.options ?? []).map((o: any, i: number) => <option key={`${o.value}-${i}`} value={o.value}>{o.label}</option>)}
               </select>
             ) : <Inline key={f.key} value={boFields[f.key] ?? ''} onChange={v => setBoFields({ ...boFields, [f.key]: v })} placeholder={f.placeholder || f.label} width={f.bankType ? 220 : 260} mono={!!f.bankType} />)}
           </div>
