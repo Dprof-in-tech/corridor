@@ -42,6 +42,8 @@ export const STELLAR_USDC = 'crypto:STELLAR:USDC';
 export const NGN = 'fiat:NGN';
 
 export const fmtNgn = (n: number | null | undefined) => n == null ? '—' : `₦${Math.round(n).toLocaleString()}`;
+/** Exact amount to transfer, as the provider stated it — thousands separators only, never rounded. */
+export const fmtExactNgn = (v: string | number) => { const s = String(v).trim(); const [int, dec] = s.split('.'); return `₦${Number(int).toLocaleString('en')}${dec ? '.' + dec : ''}`; };
 export const fmtUsdc = (n: number | null | undefined) => n == null ? '—' : `${Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 })} USDC`;
 export { shortG, isGAddress } from './stellar';
 

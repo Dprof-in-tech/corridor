@@ -4,7 +4,7 @@ import type { PollarClient } from '@pollar/core';
 import { weave, pollOrder, STELLAR_USDC, NGN } from './weave';
 import { usdcIssuer } from './network';
 import { createNigeriaSend, executeNigeriaSend, type PollarSigner, type NigeriaRecipient } from './nigeria-send';
-import { bestQuote, usdcFromBobOnramp, bobFromUsdcOfframp, startOnRamp, startOffRamp, isKycBlocked, type RampQuote } from './pollar-ramps';
+import { bestQuote, usdcFromBobOnramp, bobFromUsdcOfframp, startOnRamp, startOffRamp, isKycBlocked, describeBankFields, type RampQuote } from './pollar-ramps';
 
 // The conversational dashboard reduces every transfer to (recipient, source,
 // amount). This module turns that triple into the concrete sequence of Weave
@@ -106,7 +106,16 @@ export async function runFlow(input: FlowInput, client: PollarClient, signer: Po
     const q = await bestQuote(client, 'offramp', bob);
     const out = await startOffRamp(client, q, bob, wallet, bo.fields);
     if (out.kycUrl) { emit({ kind: 'kyc', url: out.kycUrl }); throw new Error('Pollar needs a quick identity check before paying out. Complete it and try again; the USDC stays in your wallet.'); }
-    return out;
+    if (out.stellarTxHash) emit({ kind: 'tx', hash: out.stellarTxHash });
+    let status = out.status;
+    if (!out.mocked && out.txId && status !== 'completed' && status !== 'failed') {
+      // Follow the provider for a bit; ACH can take longer than we want to hold the screen.
+      emit({ kind: 'stage', label: `${out.provider} is processing the payout` });
+      try { status = await client.pollRampTransaction(out.txId, { intervalMs: 8000, timeoutMs: 90_000 }); } catch { status = 'processing'; }
+    }
+    if (status === 'failed') throw new Error(`${out.provider} could not complete the payout. The USDC left your wallet — check History and contact support with tx ${out.txId}.`);
+    const where = describeBankFields(bo.fields, q);
+    return { ...out, status, where };
   };
 
   // ── the seven pairs ──────────────────────────────────────────────────────
@@ -128,7 +137,7 @@ export async function runFlow(input: FlowInput, client: PollarClient, signer: Po
     if (from === 'bal') {
       const { bob } = await bobFromUsdcOfframp(client, amount);
       const out = await offrampBob(bob, input.bo);
-      return { headline: 'Bolivianos on the way', detail: `Bs ${bob.toFixed(2)} → ${input.bo.fields.bank ?? 'your bank'} ····${(input.bo.fields.account ?? '').slice(-4)}`, mocked: !!out.mocked };
+      return { headline: out.status === 'completed' ? 'Bolivianos delivered' : 'Bolivianos on the way', detail: `Bs ${bob.toFixed(2)} → ${out.where}${out.mocked ? '' : ` · via ${out.provider}${out.status === 'completed' ? '' : ' (processing)'}`}`, hash: out.stellarTxHash ?? null, mocked: !!out.mocked };
     }
     if (from === 'ngn') {
       const before = await usdcBalance();
@@ -137,7 +146,7 @@ export async function runFlow(input: FlowInput, client: PollarClient, signer: Po
       if (!(landed > 0)) throw new Error('The naira deposit completed but no USDC has reached your wallet yet — nothing was paid out. Try the Bolivian payout again in a minute.');
       const { bob } = await bobFromUsdcOfframp(client, landed);
       const out = await offrampBob(bob, input.bo);
-      return { headline: 'Bolivianos on the way', detail: `₦${amount.toLocaleString()} → Bs ${bob.toFixed(2)} to your bank`, mocked: !!out.mocked };
+      return { headline: out.status === 'completed' ? 'Bolivianos delivered' : 'Bolivianos on the way', detail: `₦${amount.toLocaleString()} → Bs ${bob.toFixed(2)} → ${out.where}${out.mocked ? '' : ` · via ${out.provider}${out.status === 'completed' ? '' : ' (processing)'}`}`, hash: out.stellarTxHash ?? null, mocked: !!out.mocked };
     }
   }
   if (to === 'fr') {

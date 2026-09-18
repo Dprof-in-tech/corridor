@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { bankMatches, fmtNgn, type Bank } from '../../../lib/weave';
+import { bankMatches, fmtNgn, fmtExactNgn, type Bank } from '../../../lib/weave';
 import { Logo } from '../../../components/Brand';
 
 // Public payer page for a naira request. No account needed. Everything that
@@ -105,10 +105,10 @@ export default function PayRequestClient({ id }: { id: string }) {
             <div style={{ font: '400 30px var(--font-display)', color: INK }}>Transfer exactly this amount</div>
             {bank ? (
               <div>
-                {[['Bank', bank.institution, 'b'], ['Account number', bank.accountIdentifier, 'n'], ['Account name', bank.accountName, 'a'], ['Amount', fmtNgn(Number(bank.amountToTransfer)), 'm']].map(([k, v, key]) => (
+                {[['Bank', bank.institution, 'b', bank.institution], ['Account number', bank.accountIdentifier, 'n', bank.accountIdentifier], ['Account name', bank.accountName, 'a', bank.accountName], ['Amount', fmtExactNgn(bank.amountToTransfer), 'm', String(bank.amountToTransfer)]].map(([k, v, key, raw]) => (
                   <div key={key} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '10px 0', borderBottom: `1px solid #E6E0D0`, font: '14px var(--font-body)' }}>
                     <span style={{ color: CAPTION }}>{k}</span>
-                    <button onClick={() => copy(key, String(v))} style={{ border: 0, background: 'transparent', font: '14px var(--font-mono)', color: INK, cursor: 'pointer' }}>{copied === key ? 'Copied ✓' : v}</button>
+                    <button onClick={() => copy(key, String(raw))} style={{ border: 0, background: 'transparent', font: '14px var(--font-mono)', color: INK, cursor: 'pointer' }}>{copied === key ? 'Copied ✓' : v}</button>
                   </div>
                 ))}
               </div>
