@@ -402,14 +402,35 @@ export default function Dashboard() {
                     <div style={{ font: '12px var(--font-body)', color: '#8A8A80', marginTop: 10 }}>{IS_TESTNET ? 'Sandbox bank — the transfer is simulated as received.' : 'Transfer exactly this amount, to the kobo — a different amount is not matched. Click a value to copy it.'}</div>
                   </div>
                 )}
-                {qr && (
-                  <div style={{ background: '#FBF8F2', border: '1px solid #D9D2C2', borderRadius: 20, padding: 20, maxWidth: 420, textAlign: 'center' }}>
-                    {qr.ramp.depositInstructions?.scannable?.image?.src && <img src={qr.ramp.depositInstructions.scannable.image.src} alt="BOB QR" style={{ width: 200, height: 200, margin: '0 auto', display: 'block' }} />}
-                    <div style={{ font: '18px var(--font-display)', marginTop: 10 }}>Pay {fmt(qr.bob, 'BOB')} with your bank app</div>
-                    {qr.ramp.mocked && <button className="cta" onClick={qr.resolvePaid} style={{ marginTop: 14, height: 44, padding: '0 22px', fontSize: 14 }}>I've paid the QR (simulate)</button>}
-                    {qr.ramp.mocked && <div style={{ font: '12px var(--font-body)', color: '#8A8A80', marginTop: 8 }}>Mocked BOB on-ramp — Pollar's Stereum QR on mainnet.</div>}
-                  </div>
-                )}
+                {qr && (() => {
+                  // Pollar's deposit instructions: a scannable (QR image as raw data + encoding, or a
+                  // ready `src` from our testnet mock), labelled fields, and the raw payload for
+                  // someone who is holding the phone the QR is on.
+                  const di = qr.ramp.depositInstructions ?? {};
+                  const img = di.scannable?.image;
+                  const src: string | null = img?.src ?? (img?.data ? `data:${img.mediaType};${img.encoding === 'base64' ? 'base64,' + img.data : 'utf8,' + encodeURIComponent(img.data)}` : null);
+                  const fields: Array<{ key: string; label: string; value: string; copyable?: boolean }> = di.fields ?? [];
+                  return (
+                    <div style={{ background: '#FBF8F2', border: '1px solid #D9D2C2', borderRadius: 20, padding: 20, maxWidth: 440, textAlign: 'center' }}>
+                      {src && <img src={src} alt="Bolivian bank QR" style={{ width: 220, height: 220, margin: '0 auto', display: 'block', background: '#fff', borderRadius: 12 }} />}
+                      <div style={{ font: '18px var(--font-display)', marginTop: 12 }}>Scan with your Bolivian bank app and pay {fmt(qr.bob, 'BOB')}</div>
+                      {fields.length > 0 && (
+                        <div style={{ marginTop: 12, textAlign: 'left' }}>
+                          {fields.map(f => (
+                            <div key={f.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '6px 0', borderBottom: '1px solid #E6E0D0', font: '13px var(--font-body)' }}>
+                              <span style={{ color: '#8A8A80' }}>{f.label}</span>
+                              <button onClick={() => navigator.clipboard.writeText(String(f.value)).catch(() => {})} title={f.copyable ? 'Copy' : undefined} style={{ border: 0, background: 'transparent', font: '13px var(--font-mono)', color: '#2F4A3B', cursor: f.copyable ? 'pointer' : 'default' }}>{f.value}</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {di.scannable?.payloadLabel && di.scannable?.payload && <div style={{ marginTop: 10, font: '12px var(--font-body)', color: '#8A8A80' }}>{di.scannable.payloadLabel}: <span style={{ font: '12px var(--font-mono)', color: '#2F4A3B', wordBreak: 'break-all' }}>{di.scannable.payload}</span></div>}
+                      {qr.ramp.mocked
+                        ? <><button className="cta" onClick={qr.resolvePaid} style={{ marginTop: 14, height: 44, padding: '0 22px', fontSize: 14 }}>I've paid the QR (simulate)</button><div style={{ font: '12px var(--font-body)', color: '#8A8A80', marginTop: 8 }}>Mocked BOB on-ramp — Pollar's Stereum QR on mainnet.</div></>
+                        : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 12, font: '13px var(--font-body)', color: '#8A8A80' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#4F7A5C', animation: 'tour-pulse 1.4s ease-in-out infinite' }} />Waiting for {qr.ramp.provider ?? 'the provider'} to confirm your payment — this updates by itself.</div>}
+                    </div>
+                  );
+                })()}
                 {kyc && <a href={kyc} target="_blank" rel="noreferrer" style={{ font: '14px var(--font-body)', color: '#4F7A5C' }}>Complete Pollar's identity check →</a>}
               </>
             )}
@@ -418,7 +439,7 @@ export default function Dashboard() {
         )}
       </div>
       <Tour open={tour} onClose={closeTour} state={{ add: self && from === 'ngn', payer: payerOk, amount: a > 0 && estReady, ready: step4, testnet: IS_TESTNET, balance: bal }} />
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @media (max-width: 720px) { .balance-num { font-size: 64px !important; } }`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes tour-pulse { 0%,100% { transform: scale(1); opacity: 1 } 50% { transform: scale(1.6); opacity: .5 } } @media (max-width: 720px) { .balance-num { font-size: 64px !important; } }`}</style>
     </Chrome>
   );
 }
