@@ -56,11 +56,11 @@ export default function Dashboard() {
   // ── first-run tour ─────────────────────────────────────────────────────
   const [tour, setTour] = useState(false);
   useEffect(() => {
-    if (wallet && tourPending()) setTour(true);
+    if (wallet && tourPending(wallet.address)) setTour(true);
     const replay = () => setTour(true);
     window.addEventListener(TOUR_EVENT, replay); return () => window.removeEventListener(TOUR_EVENT, replay);
   }, [wallet]);
-  const closeTour = () => { setTour(false); markTourDone(); };
+  const closeTour = () => { setTour(false); if (wallet) markTourDone(wallet.address); };
   // ── rates (live where available; the design's numbers are illustrative) ──
   const [ngnPerUsd, setNgnPerUsd] = useState(1400);
   // On mainnet the Bolivian ramp exists only once Pollar enables it on the app; the mock covers testnet.

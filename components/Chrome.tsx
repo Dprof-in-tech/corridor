@@ -95,7 +95,7 @@ export function Chrome({ children, back }: { children: React.ReactNode; back?: s
             </span>
             {IS_TESTNET ? 'TEST MODE' : 'MAINNET'}
           </button>
-          {IS_TESTNET && <button onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))} className="chrome-btn" title="Show me around" aria-label="Show me around" style={{ width: 34, height: 34, borderRadius: 17, border: 0, background: 'transparent', color: '#2F4A3B', font: 'italic 18px var(--font-display)', cursor: 'pointer' }}>?</button>}
+          {!COMING_SOON && <button onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))} className="chrome-btn" title="Show me around" aria-label="Show me around" style={{ width: 34, height: 34, borderRadius: 17, border: 0, background: 'transparent', color: '#2F4A3B', font: 'italic 18px var(--font-display)', cursor: 'pointer' }}>?</button>}
           <button onClick={() => openTxHistoryModal()} className="chrome-btn" style={{ height: 34, padding: '0 14px', borderRadius: 17, border: 0, background: 'transparent', color: '#2F4A3B', fontSize: 13, cursor: 'pointer' }}>History</button>
           <button onClick={() => { void endWalletSession(); logout(); }} className="chrome-btn" style={{ height: 34, padding: '0 14px', borderRadius: 17, border: 0, background: 'transparent', color: '#5E6058', fontSize: 13, cursor: 'pointer' }}>Sign out</button>
         </div>
