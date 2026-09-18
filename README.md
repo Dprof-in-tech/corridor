@@ -125,9 +125,12 @@ switch to live credentials; the mainnet code paths — the two-signature
 LI.FI/CCTP bridge, the $2 floor, the XDR checks before signing — are in this
 repo but are exercised through Weave's SEP-24 pages today, not through this UI.
 
-The hosted demo runs on **testnet**, as the Pollar team asked for hackathon
-builds, with clearly-labelled stand-ins. The Nigerian leg has already run on
-mainnet: 2 USDC from a personal Stellar wallet
+The hosted app starts on **testnet**, as the Pollar team asked for hackathon
+builds, with clearly-labelled stand-ins; the switch in the header takes it to
+mainnet, where the whole corridor has now run for real — naira in from a
+Nigerian bank to bolivianos in a Bolivian bank, and USDC from the Pollar
+embedded wallet to a Nigerian bank (see `/mainnet`). The first mainnet proof:
+2 USDC from a personal Stellar wallet
 became ₦2,698.94 in a PalmPay account in 1 min 23 s
 ([Stellar tx](https://stellar.expert/explorer/public/tx/3b04306949879f24384c0b2ccc50c1209a121cb531a5b238e372818f0c8a5b48) ·
 [Base tx](https://basescan.org/tx/0x2eed4f577d75c19f028f86d770ff1d15e634453b8cd4359ee706245cb89dc701)).
@@ -137,8 +140,8 @@ became ₦2,698.94 in a PalmPay account in 1 min 23 s
 | Sign-in, wallet, sponsored fees | Pollar testnet app | Pollar mainnet app |
 | Naira payout to a bank | Weave sandbox (`sk_test_`): payout marked as received | Weave live (`sk_live_`), **live** |
 | Stellar → Base hop | Weave's **testnet simulator**: a funded testnet account that plays the bridge counterparty (labelled `stellar_simulator`) | LI.FI / Circle CCTP, **live**, payer-signed, 2 USDC minimum |
-| Naira → wallet (Add money) | Weave sandbox + simulator | Weave → NEAR Intents (NEAR's Stellar pairs are currently paused upstream) |
-| Bolivianos in / out | **Mocked** (`MockBolivia`) — same SDK calls, QR image marked *MOCK QR · TESTNET* | Pollar's Stereum ramp, enabled per app by Pollar |
+| Naira → wallet (Add money) | Weave sandbox + simulator | Weave → NEAR Intents, **live** (₦4,030 → 2.85 USDC on 18 Sep) |
+| Bolivianos in / out | **Mocked** (`MockBolivia`) — same SDK calls, QR image marked *MOCK QR · TESTNET* | Pollar's Stereum ramp, **live** on our mainnet app (two ACH payouts on 18 Sep) |
 | SEP-24 anchor | `api.paywithweave.com` (mainnet passphrase); testnet listing needs Pollar to enable the home domain | `api.paywithweave.com` |
 
 ## Architecture

@@ -63,8 +63,8 @@ const HOPS: Array<{ n: string; title: string; who: string; holds: string; time: 
   { n: '05', title: 'Naira in the bank', who: 'Any Nigerian bank', holds: 'The recipient', time: '', status: 'live', note: 'Proof #1 below: ₦2,698.94 in PalmPay, 1 min 23 s after the second signature.' },
 ];
 const OTHER: Array<{ leg: string; via: string; status: 'live' | 'switch' | 'paused'; note: string }> = [
-  { leg: 'Naira → your wallet (Add money)', via: 'Weave → NEAR Intents', status: 'paused', note: 'NEAR\'s Stellar pairs are paused ("quoting not available"). On testnet a labelled simulator stands in; on mainnet this turns on the day NEAR resumes.' },
-  { leg: 'Bolivianos in and out', via: 'Pollar · Stereum (QR in, ACH out)', status: 'switch', note: 'Pollar enables the BOB ramp per mainnet app. Mocked on testnet at the Pollar team\'s request; the calls are the same SDK calls.' },
+  { leg: 'Naira → your wallet (Add money)', via: 'Weave → NEAR Intents', status: 'live', note: 'Naira by bank transfer → USDC on Base → NEAR Intents → your Stellar wallet. Ran live on 18 Sep (₦4,030 → 2.85 USDC). If NEAR pauses the pair again the app disables the option and says why.' },
+  { leg: 'Bolivianos in and out', via: 'Pollar · Stereum (QR in, ACH out)', status: 'live', note: 'Enabled on the mainnet app on 18 Sep; two ACH payouts done (proofs above). Mocked on testnet at the Pollar team\'s request — same SDK calls.' },
   { leg: 'Friend → friend', via: 'Stellar payment, sponsored', status: 'live', note: 'USDC to an @handle or G-address. No fee.' },
   { leg: 'Any Stellar wallet (SEP-24)', via: 'Weave anchor · stellar.toml', status: 'switch', note: 'Weave is a SEP-10/24 anchor for NGN, live at api.paywithweave.com. Pollar lists it by home domain.' },
   { leg: `${NEXT_AFRICA.map(c => c.name).join(' · ')} (${NEXT_CURRENCIES})`, via: 'Weave', status: 'switch', note: 'The same payout rail that delivers naira already carries these currencies. Enabling a country is a switch on Weave\'s side, not a new integration — and Corridor is country-agnostic (one row in lib/countries.ts).' },
@@ -88,7 +88,7 @@ export default function MainnetPage() {
         <section style={{ maxWidth: 760, display: 'flex', flexDirection: 'column', gap: 18 }}>
           <Eyebrow>Mainnet · what is real today</Eyebrow>
           <h1 style={{ font: '400 clamp(48px, 7vw, 88px)/0.95 var(--font-display)', letterSpacing: '-0.025em', color: INK, margin: 0 }}>Real naira.<br />Real Stellar.<br /><Em>Nobody in the middle.</Em></h1>
-          <p style={{ font: '16px/1.6 var(--font-body)', color: MUTED, margin: 0, maxWidth: 560 }}>The app you can sign into runs on testnet with the Bolivian payout mocked, as the Pollar team asked. The Nigerian leg is already live on mainnet — below are the transactions, checked against Horizon as you read this, and what the whole path looks like hop by hop.</p>
+          <p style={{ font: '16px/1.6 var(--font-body)', color: MUTED, margin: 0, maxWidth: 560 }}>Corridor runs on mainnet: naira in from a Nigerian bank, bolivianos out to a Bolivian bank, and the reverse — from a wallet you get by signing in with Google. Below are the transactions, checked against Horizon as you read this, and what the path looks like hop by hop. The test-mode switch keeps a sandbox for trying it with play money.</p>
         </section>
 
         <section style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -143,7 +143,7 @@ export default function MainnetPage() {
           <p style={{ font: '15px/1.6 var(--font-body)', color: MUTED, margin: 0 }}>There is no "mainnet mode" flag in the code. The switch in the app header picks a credential pair — Pollar's mainnet publishable key and Weave's live secret key — and the USDC issuer, the explorer, the real bridge instead of the simulator and the real BOB ramp instead of the mock all follow from which keys are in use. That is how Weave's sandbox and live environments already work for merchants.</p>
           <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
             <Link href="/app" className="cta" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>Try it on testnet</Link>
-            <a href="https://stellar.expert/explorer/public/tx/3b04306949879f24384c0b2ccc50c1209a121cb531a5b238e372818f0c8a5b48" target="_blank" rel="noreferrer" style={{ font: '14px var(--font-body)', color: INK }}>Open proof #1 on stellar.expert ↗</a>
+            <a href={STELLAR_EXPERT_TX(PROOFS[0].stellarTx)} target="_blank" rel="noreferrer" style={{ font: '14px var(--font-body)', color: INK }}>Open the latest proof on stellar.expert ↗</a>
           </div>
         </section>
       </main>
