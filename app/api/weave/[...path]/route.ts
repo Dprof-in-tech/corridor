@@ -51,8 +51,10 @@ async function proxy(req: NextRequest, parts: string[]) {
 
   let body: any = undefined;
   if (req.method === 'POST') {
-    body = await req.json().catch(() => null);
-    if (body === null) return bad('invalid JSON');
+    // Some steps post with no body (bridge-tx); an empty body is fine, malformed JSON is not.
+    const raw = await req.text();
+    if (raw.trim() === '') body = {};
+    else { try { body = JSON.parse(raw); } catch { return bad('invalid JSON'); } }
     if (/^orders$/.test(path)) { const err = checkOrderBody(body, s); if (err) return bad(err); }
     if (/^sandbox\/stellar-faucet$/.test(path)) {
       if (!isGAddress(String(body.to ?? ''))) return bad('invalid Stellar address');
