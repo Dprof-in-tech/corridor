@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { usePollar } from '@pollar/react';
 import { GoogleButton } from '../components/GoogleButton';
 import { Coins, LandingShapes, Logo, useBoardScale } from '../components/Brand';
-import { useNetwork } from '../lib/network';
+import { useNetwork, MAINNET_LIVE } from '../lib/network';
 import { NEXT_AFRICA, NEXT_CURRENCIES } from '../lib/countries';
 import { DemoVideoLink } from '../components/DemoVideo';
 
@@ -112,7 +112,7 @@ export default function Landing() {
           </div>
           <div ref={heroRef} style={{ marginTop: 72, maxWidth: 640, position: 'relative', zIndex: 1 }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, font: '12px var(--font-mono)', letterSpacing: '.08em', color: '#4F7A5C' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#4F7A5C' }} />NIGERIA ↔ BOLIVIA · {IS_TESTNET ? 'TESTNET DEMO' : 'MAINNET · COMING SOON'}
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#4F7A5C' }} />NIGERIA ↔ BOLIVIA · {IS_TESTNET ? 'TESTNET DEMO' : MAINNET_LIVE ? 'LIVE ON MAINNET' : 'MAINNET · COMING SOON'}
             </div>
             <h1 className="headline">Naira in Lagos.<br />Bolivianos in La Paz.<br /><span style={{ color: '#4F7A5C', fontStyle: 'italic' }}>Minutes, not days.</span></h1>
             <div className="bullets">

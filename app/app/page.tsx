@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePollar } from '@pollar/react';
 import { Chrome } from '../../components/Chrome';
-import { weave, verifyAccount, bankMatches, STELLAR_USDC, NGN, shortG, isGAddress, type Bank } from '../../lib/weave';
+import { weave, verifyAccount, bankMatches, STELLAR_USDC, NGN, shortG, isGAddress, fmtExactNgn, type Bank } from '../../lib/weave';
 import { useNetwork, explorerTx } from '../../lib/network';
 import { bestQuote, bobFromUsdcOfframp, usdcFromBobOnramp, type RampQuote } from '../../lib/pollar-ramps';
 import { runFlow, type To, type From, type FlowEvent, type FlowResult } from '../../lib/flows';
@@ -46,7 +46,7 @@ const Typeahead = ({ q, setQ, pick, picked, options, placeholder }: { q: string;
 );
 
 export default function Dashboard() {
-  const { wallet, walletBalance, refreshWalletBalance, signAndSubmitTx, runTx, getClient } = usePollar();
+  const { wallet, walletBalance, refreshWalletBalance, signAndSubmitTx, runTx, getClient, isAuthenticated } = usePollar();
   const IS_TESTNET = useNetwork() === 'testnet';
   const bal = walletBalance.step === 'loaded' ? Number(walletBalance.data.balances.find(b => b.code === 'USDC')?.balance ?? 0) : null;
 
@@ -56,18 +56,31 @@ export default function Dashboard() {
   // ── first-run tour ─────────────────────────────────────────────────────
   const [tour, setTour] = useState(false);
   useEffect(() => {
-    if (wallet && tourPending()) setTour(true);
+    if (wallet && tourPending(wallet.address)) setTour(true);
     const replay = () => setTour(true);
     window.addEventListener(TOUR_EVENT, replay); return () => window.removeEventListener(TOUR_EVENT, replay);
   }, [wallet]);
-  const closeTour = () => { setTour(false); markTourDone(); };
+  const closeTour = () => { setTour(false); if (wallet) markTourDone(wallet.address); };
   // ── rates (live where available; the design's numbers are illustrative) ──
   const [ngnPerUsd, setNgnPerUsd] = useState(1400);
+  // On mainnet the Bolivian ramp exists only once Pollar enables it on the app; the mock covers testnet.
+  const [boAvailable, setBoAvailable] = useState<boolean | null>(null);
+  // Naira top-ups (NGN → Stellar) ride NEAR Intents on mainnet; probe whether it quotes the pair right now.
+  const [ngnInAvailable, setNgnInAvailable] = useState<boolean | null>(null);
+  const NGN_IN_AVAILABLE = IS_TESTNET || ngnInAvailable !== false;
   const [bobPerUsd, setBobPerUsd] = useState(6.96);
   useEffect(() => {
     weave(`quotes?from=${STELLAR_USDC}&to=${NGN}&amount=1&amountIn=source`).then(r => { if (r.ok && r.data?.estimatedDest) setNgnPerUsd(Number(r.data.estimatedDest)); });
-    bestQuote(getClient(), 'offramp', 100).then(q => setBobPerUsd(Number(q.rate))).catch(() => {});
-  }, [getClient]);
+    // Deposit direction: on mainnet this depends on NEAR Intents quoting Base → Stellar USDC today.
+    if (!IS_TESTNET) weave(`quotes?from=${NGN}&to=${STELLAR_USDC}&amount=5000&amountIn=source`).then(r => setNgnInAvailable(!!(r.ok && r.data?.estimatedDest)));
+    if (!isAuthenticated) return;
+    let live = true;
+    const probe = (attempt: number) => bestQuote(getClient(), 'offramp', 100)
+      .then(q => { if (!live) return; setBobPerUsd(Number(q.rate)); setBoAvailable(true); })
+      .catch((e: any) => { if (!live) return; if (e?.notEnabled) setBoAvailable(false); else if (attempt < 2) setTimeout(() => probe(attempt + 1), 4000); });
+    probe(0);
+    return () => { live = false; };
+  }, [getClient, isAuthenticated]);
 
   // ── handle ─────────────────────────────────────────────────────────────
   const [handle, setHandle] = useState<string | null>(null);
@@ -240,7 +253,7 @@ export default function Dashboard() {
             <span>at</span>
             {!boQuote ? <span style={{ font: 'italic 22px var(--font-display)', color: '#8A8A80' }}>loading Bolivian banks…</span> : (boQuote.requiredFields ?? []).map((f: any) => f.type === 'select' ? (
               <select key={f.key} value={boFields[f.key] ?? ''} onChange={e => setBoFields({ ...boFields, [f.key]: e.target.value })} style={{ border: 0, borderBottom: '1px solid #2F4A3B', background: 'transparent', font: 'italic 28px var(--font-display)', color: '#2F4A3B' }}>
-                <option value="">{f.label}</option>{(f.options ?? []).map((o: any) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                <option value="">{f.label}</option>{(f.options ?? []).map((o: any, i: number) => <option key={`${o.value}-${i}`} value={o.value}>{o.label}</option>)}
               </select>
             ) : <Inline key={f.key} value={boFields[f.key] ?? ''} onChange={v => setBoFields({ ...boFields, [f.key]: v })} placeholder={f.placeholder || f.label} width={f.bankType ? 220 : 260} mono={!!f.bankType} />)}
           </div>
@@ -275,7 +288,7 @@ export default function Dashboard() {
           </div>
           </div>
           <div data-tour="links" style={{ display: 'flex', gap: 28, marginTop: 22, flexWrap: 'wrap', alignItems: 'baseline', width: 'fit-content' }}>
-            <button className="link-serif" onClick={startAdd}>Add money</button>
+            <button className="link-serif" onClick={startAdd} disabled={!NGN_IN_AVAILABLE} title={!NGN_IN_AVAILABLE ? 'Naira top-ups are unavailable right now: NEAR Intents is not quoting Base → Stellar USDC.' : undefined} style={!NGN_IN_AVAILABLE ? { opacity: .4, cursor: 'not-allowed' } : undefined}>Add money</button>
             {handle ? (
               <Link href="/app/request-naira" className="link-serif" style={{ textDecoration: 'none' }} title="Request naira from anyone in Nigeria — paid out to you in BOB">Get paid at @{handle}</Link>
             ) : claiming ? (
@@ -290,7 +303,7 @@ export default function Dashboard() {
             )}
             <button className="link-serif" onClick={startWithdraw}>Withdraw to my bank</button>
           </div>
-          <div style={{ font: '12px var(--font-body)', color: '#8A8A80', marginTop: 10 }}>{wallet ? shortG(wallet.address) : ''}{IS_TESTNET ? ' · testnet · fees sponsored by Pollar' : ''}</div>
+          <div style={{ font: '12px var(--font-body)', color: '#8A8A80', marginTop: 10 }}>{wallet ? shortG(wallet.address) : ''}{IS_TESTNET ? ' · testnet · fees sponsored by Pollar' : ' · mainnet · real money'}</div>
         </section>
 
         {/* Send flow */}
@@ -300,7 +313,7 @@ export default function Dashboard() {
               <div className="prose-step">I want to send money to</div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <Pill on={to === 'ng'} dot="#4F7A5C" onClick={() => pickTo('ng')}>a bank in Nigeria</Pill>
-                <Pill on={to === 'bo'} dot="#B8C7BA" onClick={() => pickTo('bo')}>a bank in Bolivia</Pill>
+                <Pill on={to === 'bo'} dot="#B8C7BA" disabled={boAvailable === false} title={boAvailable === false ? 'Pollar has not enabled the Bolivian ramp on this mainnet app yet.' : undefined} onClick={() => pickTo('bo')}>a bank in Bolivia</Pill>
                 <Pill on={to === 'fr'} dot="#2F4A3B" onClick={() => pickTo('fr')}>a friend on Corridor</Pill>
               </div>
               {/* The rest of the African side: on Weave's rail already, waiting on a switch. */}
@@ -320,8 +333,8 @@ export default function Dashboard() {
                 <div className="prose-step">paying with</div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <Pill on={from === 'bal'} onClick={() => pickFrom('bal')}>my balance</Pill>
-                  <Pill on={from === 'ngn'} disabled={blocked === 'ngn'} title={blocked === 'ngn' ? 'Naira to a Nigerian bank is just a local transfer.' : undefined} onClick={() => pickFrom('ngn')}>a naira bank transfer</Pill>
-                  <Pill on={from === 'bob'} disabled={blocked === 'bob'} title={blocked === 'bob' ? 'Bolivianos to a Bolivian bank is just a local transfer.' : undefined} onClick={() => pickFrom('bob')}>a Bolivian bank QR</Pill>
+                  <Pill on={from === 'ngn'} disabled={blocked === 'ngn' || !NGN_IN_AVAILABLE} title={blocked === 'ngn' ? 'Naira to a Nigerian bank is just a local transfer.' : !NGN_IN_AVAILABLE ? 'Naira top-ups are unavailable right now: NEAR Intents is not quoting Base → Stellar USDC.' : undefined} onClick={() => pickFrom('ngn')}>a naira bank transfer</Pill>
+                  <Pill on={from === 'bob'} disabled={blocked === 'bob' || boAvailable === false} title={blocked === 'bob' ? 'Bolivianos to a Bolivian bank is just a local transfer.' : boAvailable === false ? 'Pollar has not enabled the Bolivian ramp on this mainnet app yet.' : undefined} onClick={() => pickFrom('bob')}>a Bolivian bank QR</Pill>
                 </div>
                 <div style={{ font: '14px var(--font-body)', color: '#8A8A80' }}>{sourceHint}</div>
                 {from === 'ngn' && (
@@ -383,10 +396,10 @@ export default function Dashboard() {
                 {bankDetails && (
                   <div style={{ background: '#FBF8F2', border: '1px solid #D9D2C2', borderRadius: 20, padding: 20, maxWidth: 520 }}>
                     <div style={{ font: '22px var(--font-display)', marginBottom: 10 }}>Transfer exactly this amount</div>
-                    {[['Bank', bankDetails.institution], ['Account number', bankDetails.accountIdentifier], ['Account name', bankDetails.accountName], ['Amount', fmt(Number(bankDetails.amountToTransfer), 'NGN')]].map(([k, v]) => (
-                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '8px 0', borderBottom: '1px solid #E6E0D0', font: '14px var(--font-body)' }}><span style={{ color: '#8A8A80' }}>{k}</span><button onClick={() => navigator.clipboard.writeText(String(v))} style={{ border: 0, background: 'transparent', font: '14px var(--font-mono)', color: '#2F4A3B', cursor: 'pointer' }}>{v}</button></div>
+                    {[['Bank', bankDetails.institution, bankDetails.institution], ['Account number', bankDetails.accountIdentifier, bankDetails.accountIdentifier], ['Account name', bankDetails.accountName, bankDetails.accountName], ['Amount', fmtExactNgn(bankDetails.amountToTransfer), String(bankDetails.amountToTransfer)]].map(([k, v, raw]) => (
+                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '8px 0', borderBottom: '1px solid #E6E0D0', font: '14px var(--font-body)' }}><span style={{ color: '#8A8A80' }}>{k}</span><button title="Copy" onClick={() => navigator.clipboard.writeText(String(raw))} style={{ border: 0, background: 'transparent', font: '14px var(--font-mono)', color: '#2F4A3B', cursor: 'pointer' }}>{v}</button></div>
                     ))}
-                    {IS_TESTNET && <div style={{ font: '12px var(--font-body)', color: '#8A8A80', marginTop: 10 }}>Sandbox bank — the transfer is simulated as received.</div>}
+                    <div style={{ font: '12px var(--font-body)', color: '#8A8A80', marginTop: 10 }}>{IS_TESTNET ? 'Sandbox bank — the transfer is simulated as received.' : 'Transfer exactly this amount, to the kobo — a different amount is not matched. Click a value to copy it.'}</div>
                   </div>
                 )}
                 {qr && (

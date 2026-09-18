@@ -10,7 +10,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 //
 // Replayable from the "?" in the header (Chrome dispatches `corridor:tour`).
 
-export const TOUR_KEY = 'corridor.tour';           // 'done' once finished/skipped
+export const TOUR_KEY = 'corridor.tour';           // + ':' + wallet address → 'done' once finished/skipped
 export const TOUR_EVENT = 'corridor:tour';
 
 export interface TourState { add: boolean; payer: boolean; amount: boolean; ready: boolean; testnet: boolean; balance: number | null }
@@ -145,8 +145,8 @@ export function Tour({ open, state, onClose }: { open: boolean; state: TourState
   );
 }
 
-/** True for a browser that has never finished or skipped the tour. */
-export function tourPending(): boolean {
-  try { return localStorage.getItem(TOUR_KEY) !== 'done'; } catch { return false; }
+/** True for a WALLET that has never finished or skipped the tour (a new wallet in an old browser still gets it). */
+export function tourPending(address: string): boolean {
+  try { return localStorage.getItem(`${TOUR_KEY}:${address}`) !== 'done'; } catch { return false; }
 }
-export function markTourDone() { try { localStorage.setItem(TOUR_KEY, 'done'); } catch {} }
+export function markTourDone(address: string) { try { localStorage.setItem(`${TOUR_KEY}:${address}`, 'done'); } catch {} }

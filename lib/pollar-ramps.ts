@@ -48,13 +48,18 @@ export async function bestQuote(client: PollarClient, direction: 'onramp' | 'off
   return q;
 }
 async function fetchQuote(client: PollarClient, direction: 'onramp' | 'offramp', amountFiat: number): Promise<RampQuote> {
+  let quotes: RampQuote[] = [];
   try {
-    const { quotes } = await client.getRampsQuote({ ...BO, direction, amount: amountFiat });
-    const q = (quotes as RampQuote[]).find(x => x.recommended) ?? (quotes as RampQuote[])[0];
-    if (q) return q;
-  } catch { /* fall through to the mock on testnet */ }
+    quotes = (await client.getRampsQuote({ ...BO, direction, amount: amountFiat })).quotes as RampQuote[];
+  } catch (e) {
+    if (isTestnet()) return mockQuote(direction, amountFiat);
+    // Auth not ready / network blip: the caller should treat this as "unknown", not "no provider".
+    throw Object.assign(new Error('Could not reach the ramp service — try again in a moment.'), { transient: true, cause: e });
+  }
+  const q = quotes.find(x => x.recommended) ?? quotes[0];
+  if (q) return q;
   if (isTestnet()) return mockQuote(direction, amountFiat);
-  throw new Error('No Bolivian ramp is enabled for this Pollar app. Enable Stereum (BOB · QR in / ACH out) under Integrations → Ramps on a mainnet app — the Pollar team can switch it on.');
+  throw Object.assign(new Error('No Bolivian ramp is enabled for this Pollar app. Enable Stereum (BOB · QR in / ACH out) under Integrations → Ramps — the Pollar team can switch it on.'), { notEnabled: true });
 }
 
 /** BOB that `usdc` pays out to a Bolivian bank (off-ramp), net of the provider fee. */
@@ -93,7 +98,8 @@ export type OnRampResult = { txId: string; provider: string; status: 'pending' |
 /** Real Pollar on-ramp when available; otherwise a mocked QR whose "payment" settles via the sandbox faucet. */
 export async function startOnRamp(client: PollarClient, quote: RampQuote, bob: number, walletAddress: string, usdcToLand: number): Promise<OnRampResult> {
   if (!quote.mocked) {
-    return client.createOnRamp({ quoteId: quote.quoteId, amount: bob, currency: 'BOB', country: 'BO', walletAddress }) as Promise<OnRampResult>;
+    try { return await client.createOnRamp({ quoteId: quote.quoteId, amount: bob, currency: 'BOB', country: 'BO', walletAddress }) as OnRampResult; }
+    catch (e) { throw new Error(rampErrorMessage(e, 'The on-ramp provider rejected the request.')); }
   }
   const ref = `MOCK-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
   return {
@@ -111,17 +117,46 @@ export async function startOnRamp(client: PollarClient, quote: RampQuote, bob: n
   };
 }
 
-export type OffRampResult = { txId: string; provider: string; status: string; kycUrl?: string; mocked?: boolean; receipt?: { bank: string; account: string; holder: string; bob: number } };
+export type OffRampResult = { txId: string; provider: string; status: string; kycUrl?: string; stellarTxHash?: string | null; mocked?: boolean; receipt?: { bank: string; account: string; holder: string; bob: number } };
+
+/** Pollar's ramp errors carry a human `details` string (e.g. "txInsufficientBalance: …"); surface it. */
+export function rampErrorMessage(e: unknown, fallback: string): string {
+  const err = e as { code?: string; details?: string; message?: string } | undefined;
+  if (err?.code === 'SDK_RAMPS_ONCHAIN_SUBMIT_FAILED' && /XLM/i.test(err.details ?? '')) return 'Your wallet needs a little XLM to pay the network fee for this payout (ramp payments are not fee-sponsored). Send 1 XLM to your wallet address and try again — the USDC has not moved.';
+  return err?.details ? `${err.details}` : err?.message || fallback;
+}
+
+/** Ramp payments are signed by the wallet itself and pay their own fee — a sponsored wallet with 0 XLM cannot submit one. */
+export async function assertXlmForRamp(client: PollarClient, walletAddress: string) {
+  try {
+    const { balances } = await client.getWalletBalance(walletAddress);
+    const xlm = Number((balances as any[]).find(b => b.type === 'native' || b.code === 'XLM' || b.asset === 'XLM')?.balance ?? 0);
+    if (xlm < 0.05) throw new Error(`Your wallet holds ${xlm.toFixed(2)} XLM. Ramp payouts pay their own network fee, so send about 1 XLM to ${walletAddress} first — the USDC stays where it is.`);
+  } catch (e) { if ((e as Error).message?.includes('Ramp payouts')) throw e; /* balance lookup failed: let the ramp call decide */ }
+}
+
+/** Human label for the bank details a quote asked for (works for the mock and for real providers). */
+export function describeBankFields(fields: Record<string, string>, quote: RampQuote): string {
+  const req = (quote.requiredFields ?? []) as any[];
+  const bankF = req.find(f => f.type === 'select') ?? req.find(f => /bank/i.test(f.key) && !f.bankType);
+  const acctF = req.find(f => f.bankType) ?? req.find(f => /account|acct|cbu|iban/i.test(f.key));
+  const bank = bankF ? (bankF.options?.find((o: any) => o.value === fields[bankF.key])?.label ?? fields[bankF.key]) : undefined;
+  const acct = acctF ? fields[acctF.key] : undefined;
+  return [bank, acct ? `····${acct.slice(-4)}` : null].filter(Boolean).join(' ') || 'your bank';
+}
 
 /** Real Pollar off-ramp when available; otherwise a mocked payout receipt (per the Pollar team's guidance). */
 export async function startOffRamp(client: PollarClient, quote: RampQuote, bob: number, walletAddress: string, fields: Record<string, string>): Promise<OffRampResult> {
   if (!quote.mocked) {
+    await assertXlmForRamp(client, walletAddress);
     const bankField = (quote.requiredFields ?? []).find((f: any) => f.bankType);
-    return client.createOffRamp({
-      quoteId: quote.quoteId, amount: bob, currency: 'BOB', country: 'BO', walletAddress,
-      ...(bankField && fields[bankField.key] ? { bankDetails: { type: bankField.bankType as any, value: fields[bankField.key] } } : {}),
-      fields,
-    }) as Promise<OffRampResult>;
+    try {
+      return await client.createOffRamp({
+        quoteId: quote.quoteId, amount: bob, currency: 'BOB', country: 'BO', walletAddress,
+        ...(bankField && fields[bankField.key] ? { bankDetails: { type: bankField.bankType as any, value: fields[bankField.key] } } : {}),
+        fields,
+      }) as OffRampResult;
+    } catch (e) { throw new Error(rampErrorMessage(e, 'The payout provider rejected the request.')); }
   }
   await new Promise(r => setTimeout(r, 1500));
   return { txId: `mock-offramp-${Date.now()}`, provider: 'MockBolivia', status: 'completed', mocked: true, receipt: { bank: fields.bank ?? '', account: fields.account ?? '', holder: fields.holder ?? '', bob } };
