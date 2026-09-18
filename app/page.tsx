@@ -8,6 +8,7 @@ import { GoogleButton } from '../components/GoogleButton';
 import { Coins, LandingShapes, Logo, useBoardScale } from '../components/Brand';
 import { useNetwork } from '../lib/network';
 import { NEXT_AFRICA, NEXT_CURRENCIES } from '../lib/countries';
+import { DemoVideoLink } from '../components/DemoVideo';
 
 // Landing / sign-in (design handoff "Corridor Landing"). A fixed 1200×900 art
 // board on wide viewports; below ~1000px the board (below its own 1200px width) becomes a fluid column with
@@ -123,7 +124,10 @@ export default function Landing() {
               ].map(([lead, rest]) => (
                 <div key={lead} style={{ font: '14px/1.5 var(--font-body)', color: '#2F4A3B' }}><strong style={{ fontWeight: 500 }}>{lead}</strong> — {rest}</div>
               ))}
-              <Link href="/mainnet" style={{ font: 'italic 16px var(--font-display)', color: '#4F7A5C', textDecoration: 'none', borderBottom: '1px solid #4F7A5C', width: 'fit-content', marginTop: 4 }}>Already live on mainnet — see the proof →</Link>
+              <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', alignItems: 'baseline', marginTop: 4 }}>
+                <Link href="/mainnet" style={{ font: 'italic 16px var(--font-display)', color: '#4F7A5C', textDecoration: 'none', borderBottom: '1px solid #4F7A5C', width: 'fit-content' }}>Already live on mainnet — see the proof →</Link>
+                <DemoVideoLink />
+              </div>
             </div>
           </div>
           <div className="card-slot">{card}</div>

@@ -5,6 +5,7 @@ import { Fragment, useEffect, useState } from 'react';
 import { Coins, DashboardArches, Logo } from '../../components/Brand';
 import { PROOFS, STELLAR_EXPERT_TX, BASESCAN_TX, HORIZON_TX, type Proof } from '../../lib/proofs';
 import { NEXT_AFRICA, NEXT_CURRENCIES } from '../../lib/countries';
+import { DemoVideoInline, DEMO_VIDEO_SET } from '../../components/DemoVideo';
 
 // Public page: what the corridor has already done on mainnet (with the
 // on-chain records fetched live from Horizon) and a walkthrough of the
@@ -97,6 +98,12 @@ export default function MainnetPage() {
             {PROOFS.map(p => <ProofCard key={p.id} p={p} />)}
           </div>
         </section>
+
+        {DEMO_VIDEO_SET && <section style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <div><Eyebrow>Watch it happen</Eyebrow><Serif>Five minutes, <Em>on mainnet</Em>.</Serif></div>
+          <div style={{ font: '15px/1.6 var(--font-body)', color: MUTED, maxWidth: 560 }}>Sign in, send ₦5,000 from a Nigerian bank to a Bolivian bank, then pay a friend by @handle — recorded live, no cuts in the flow.</div>
+          <DemoVideoInline />
+        </section>}
 
         <section style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div><Eyebrow>Walkthrough</Eyebrow><Serif>Send $2 to a bank in Nigeria, <Em>on mainnet</Em>.</Serif></div>

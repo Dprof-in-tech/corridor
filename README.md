@@ -6,6 +6,7 @@
 | --- | --- |
 | **Live demo** | https://corridor.paywithweave.com (testnet, sign in with Google or email) |
 | **Mainnet proof** | https://corridor.paywithweave.com/mainnet |
+| **5-minute demo (mainnet)** | https://youtu.be/RBGf-MvRTz8 |
 | **Nigerian rails & Stellar anchor** | [Weave](https://paywithweave.com) — API at `https://api.paywithweave.com` |
 | **Wallets, identity & Bolivian ramp** | [Pollar](https://pollar.xyz) — `@pollar/react` / `@pollar/core` |
 | **Network** | Stellar (testnet in the demo; the Nigerian leg is live on mainnet) |
